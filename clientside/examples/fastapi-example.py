@@ -1,12 +1,15 @@
 from fastapi import FastAPI
 from captureflow.tracer import Tracer
 
-tracer = Tracer(mode="remote", auth_key="4c417841-77ad-4c96-9319-d4104aa4a27e")
+tracer = Tracer(
+    repo_url="https://github.com/DummyUser/DummyRepo",
+    server_base_url="http://127.0.0.1:8000",
+)
 
 app = FastAPI()
 
 def calculate_avg(sample_array):
-    pass
+    return sample_array
 
 @app.get("/")
 @tracer.trace_endpoint
@@ -18,6 +21,6 @@ def calculate_average():
 @app.get("/fetch_similar/")
 @tracer.trace_endpoint
 def fetch_similar_array():
-    sample_array = np.array([1,2,3,5,6]) + 1
+    sample_array = [1,2,3,4]
     res = calculate_avg(sample_array)
     return {"Hello": "World", "average": res}

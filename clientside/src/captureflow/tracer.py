@@ -14,13 +14,12 @@ from datetime import datetime
 STDLIB_PATH = "/lib/python"
 LIBRARY_PATH = "/site-packages/"
 TEMP_FOLDER = "temp/"
-REMOTE_URL = "http://127.0.0.1:1337/store/" # "https://captureflow.dev/store/"
 
 class Tracer:
-    def __init__(self, mode: str = "local", auth_key: str = None):
-        """Initialize the tracer with mode and authentication key."""
-        self.mode = mode
-        self.auth_key = auth_key
+    def __init__(self, repo_url: str, server_base_url: str = "http://127.0.0.1:8000"):
+        """Initialize the tracer with the repository URL and optionally the remote logging URL."""
+        self.repo_url = repo_url
+        self.trace_endpoint_url = f"{server_base_url.rstrip('/')}/api/v1/traces"
 
     def trace_endpoint(self, func: Callable) -> Callable:
         """Decorator to trace endpoint function calls."""
@@ -45,23 +44,17 @@ class Tracer:
                 context["output"] = {"result": self._serialize_variable(result)}
             finally:
                 sys.settrace(None)
-                if self.mode == "remote":
-                    self._send_trace_log(context)
-                else:
-                    self._write_trace_log(context)
+                self._send_trace_log(context)
 
             return result
 
         return wrapper
-
+    
     def _send_trace_log(self, context: Dict[str, Any]) -> None:
-        """Send the trace log to a remote server using the requests library."""
-        url = f"{REMOTE_URL}{context['endpoint']}_trace_{context['invocation_id']}"
-        headers = {"Authorization": f"Bearer {self.auth_key}"} if self.auth_key else {}
-        response = requests.post(url, json=context, headers=headers)
-        # Optionally check response status to confirm successful logging
+        headers = {"Content-Type": "application/json"}
+        # Include the repository URL as a query parameter for the trace data
+        response = requests.post(self.trace_endpoint_url, params={"repository-url": self.repo_url}, json=context, headers=headers)
         if response.status_code != 200:
-            # Handle unsuccessful logging attempt, e.g., log an error or raise an exception
             print(f"Failed to send trace log, status code: {response.status_code}")
 
     def _write_trace_log(self, context: Dict[str, Any]) -> None:
@@ -142,13 +135,3 @@ class Tracer:
         context["execution_trace"].append(trace_event)
 
         return lambda frame, event, arg: self._trace_function_calls(frame, event, arg, context)
-
-# Example usage of the Tracer class
-if __name__ == "__main__":
-    tracer = Tracer(mode="local")  # Change to mode="remote" and provide auth_key="<YOUR_AUTH_KEY>" for remote logging
-
-    @tracer.trace_endpoint
-    def example_function(x, y):
-        return x + y
-
-    print(example_function(5, 3))

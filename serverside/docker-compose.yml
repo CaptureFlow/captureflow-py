@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  app:
+    build: .
+    volumes:
+      - .:/usr/src/app
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+    env_file:
+      - .env
+
+  redis:
+    image: "redis:alpine"
