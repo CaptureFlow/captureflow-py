@@ -1,0 +1,22 @@
+annotated-types==0.6.0
+anyio==4.3.0
+-e git+ssh://git@github.com/CaptureFlow/captureflow-py.git@9ce45541801828216e35efc6b93d9a42ec6ca096#egg=captureflow&subdirectory=clientside
+certifi==2024.2.2
+charset-normalizer==3.3.2
+fastapi==0.110.0
+h11==0.14.0
+httpcore==1.0.4
+httpx==0.27.0
+idna==3.6
+iniconfig==2.0.0
+packaging==24.0
+pluggy==1.4.0
+pydantic==2.6.4
+pydantic_core==2.16.3
+pytest==8.1.1
+pytest-asyncio==0.23.6
+requests==2.31.0
+sniffio==1.3.1
+starlette==0.36.3
+typing_extensions==4.10.0
+urllib3==2.2.1
