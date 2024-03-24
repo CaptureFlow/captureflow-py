@@ -1,5 +1,6 @@
 import json
 import logging
+
 import networkx as nx
 
 logger = logging.getLogger(__name__)
