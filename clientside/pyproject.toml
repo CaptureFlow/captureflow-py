@@ -1,3 +1,33 @@
 [build-system]
-requires = ["setuptools>=40.6.0", "wheel"]
+requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = { find = { where = ["."], exclude = ["tests", "examples"] } }
+
+[project]
+name = "captureflow-agent"
+version = "0.0.1"
+description = "Data collector to unleash LLM power"
+authors = [
+    { name = "Nikita Kuts", email = "me@nikitakuts.com" },
+]
+readme = "README.md"
+license = { file = "LICENSE" }
+classifiers = [
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    "certifi==2024.2.2",
+    "charset-normalizer==3.3.2",
+    "idna==3.6",
+    "requests==2.31.0",
+    "urllib3==2.2.1",
+]
+
+[project.urls]
+Repository = "https://github.com/CaptureFlow/captureflow-py"
+Website = "https://captureflow.dev/"
+
+[tool.isort]
+profile = "black"
