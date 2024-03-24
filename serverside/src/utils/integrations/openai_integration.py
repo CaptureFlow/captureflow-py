@@ -1,14 +1,15 @@
+import json
+import logging
+import re
+
+from typing import Optional
 from openai import OpenAI
 
 from src.config import OPENAI_KEY
 
-from typing import Optional
-import json
-import re
-import logging
-
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
 
 class OpenAIHelper:
     def __init__(self):
@@ -16,11 +17,11 @@ class OpenAIHelper:
 
     def _create_openai_client(self) -> OpenAI:
         return OpenAI(api_key=OPENAI_KEY)
-    
+
     def generate_initial_scoring_query(self, node) -> str:
-        cur_fun_name  = node['function']
-        cur_fun_impl  = node['github_function_implementation']
-        cur_file_impl = node['github_file_content']
+        cur_fun_name = node["function"]
+        cur_fun_impl = node["github_function_implementation"]
+        cur_file_impl = node["github_file_content"]
 
         query = f"""
             Imagine that you're the most competent programmer in San Francisco.
@@ -36,15 +37,15 @@ class OpenAIHelper:
         """
 
         return query
-    
+
     def generate_improvement_query(self, call_graph, node) -> str:
         # Extract the required details from the log data
-        cur_fun_name  = node['function']
-        cur_fun_path  = node['github_file_path']
-        cur_fun_impl  = node['github_function_implementation']
-        cur_fun_input = node['arguments']
-        cur_fun_output = node['return_value']
-        cur_file_impl = node['github_file_content']
+        cur_fun_name = node["function"]
+        cur_fun_path = node["github_file_path"]
+        cur_fun_impl = node["github_function_implementation"]
+        cur_fun_input = node["arguments"]
+        cur_fun_output = node["return_value"]
+        cur_file_impl = node["github_file_content"]
 
         # parent_nodes = list(call_graph.graph.predecessors(node_id))
         # children = list(call_graph.graph.successors(node_id))
@@ -70,12 +71,16 @@ class OpenAIHelper:
 
     def generate_simulation_query(self, call_graph, node) -> str:
         # Extract the required details from the log data
-        cur_fun_name  = node['function']
-        cur_fun_path  = node['github_file_path']
-        cur_fun_impl  = node['github_function_implementation']['content'] if 'github_function_implementation' in node else 'Function implementation not found.'
-        cur_fun_input = json.dumps(node.get('input_value', {}), indent=2)
-        cur_fun_output = json.dumps(node.get('return_value', {}), indent=2)
-        cur_file_impl = node['github_file_content']
+        cur_fun_name = node["function"]
+        cur_fun_path = node["github_file_path"]
+        cur_fun_impl = (
+            node["github_function_implementation"]["content"]
+            if "github_function_implementation" in node
+            else "Function implementation not found."
+        )
+        cur_fun_input = json.dumps(node.get("input_value", {}), indent=2)
+        cur_fun_output = json.dumps(node.get("return_value", {}), indent=2)
+        cur_file_impl = node["github_file_content"]
 
         query = f"""
             As a highly skilled software engineer, you're reviewing a Python function to ensure its correctness and readability. Here's the task:
@@ -120,9 +125,9 @@ class OpenAIHelper:
                     }}
             ```
         """
-        
+
         return query.strip()
-    
+
     def generate_after_insert_style_query(self, new_file_code, function_name) -> str:
         query = f"""
             I have programatically changed source code of my file attempting to rewrite function called {function_name}.
@@ -131,7 +136,7 @@ class OpenAIHelper:
             
             Here's script text: {new_file_code}
         """
-        
+
         return query.strip()
 
     def call_chatgpt(self, query: str) -> str:
@@ -141,10 +146,7 @@ class OpenAIHelper:
                     "role": "user",
                     "content": query,
                 },
-                {
-                    "role": "system",
-                    "content": "You are a helpful assistant."
-                },
+                {"role": "system", "content": "You are a helpful assistant."},
             ],
             model="gpt-4",
         )
@@ -152,7 +154,7 @@ class OpenAIHelper:
         assert len(chat_completion.choices) == 1
 
         return chat_completion.choices[0].message.content
-    
+
     @staticmethod
     def extract_first_code_block(text: str) -> Optional[str]:
         pattern = r"```(.*?)```"
@@ -160,8 +162,8 @@ class OpenAIHelper:
         code = match.group(1)
 
         if match:
-            code = code.lstrip('python')
-            code = code.lstrip('\n')
+            code = code.lstrip("python")
+            code = code.lstrip("\n")
             return code
-        
+
         return None

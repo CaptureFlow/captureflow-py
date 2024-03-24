@@ -1,30 +1,34 @@
 import json
-import pytest
-
-from typing import Any, Dict
 from pathlib import Path
-from fastapi.testclient import TestClient
+from typing import Any, Dict
 from unittest.mock import MagicMock
 
+import pytest
+from fastapi.testclient import TestClient
+
 from src.server import app, redis
+
 
 @pytest.fixture
 def client():
     with TestClient(app) as client:
         yield client
 
+
 @pytest.fixture
 def mock_redis(mocker):
     # Mock the get_redis_connection utility function
     mock_redis = MagicMock()
-    mocker.patch('src.server.redis', new=mock_redis)
+    mocker.patch("src.server.redis", new=mock_redis)
     return mock_redis
+
 
 @pytest.fixture
 def sample_trace():
     trace_path = Path(__file__).parent / "assets" / "sample_trace.json"
     with open(trace_path) as f:
         return json.load(f)
+
 
 def normalize_trace_data(data: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -40,9 +44,12 @@ def normalize_trace_data(data: Dict[str, Any]) -> Dict[str, Any]:
             item["return_value"] = None
     return data
 
+
 def test_store_trace_log(client, mock_redis, sample_trace):
     repo_url = "https://github.com/NickKuts/capture_flow"
-    response = client.post("/api/v1/traces", params={"repository-url": repo_url}, json=sample_trace)
+    response = client.post(
+        "/api/v1/traces", params={"repository-url": repo_url}, json=sample_trace
+    )
 
     assert response.status_code == 200
     assert response.json() == {"message": "Trace log saved successfully"}
@@ -56,7 +63,9 @@ def test_store_trace_log(client, mock_redis, sample_trace):
 
     # Expected key format now includes the repository URL
     expected_key = f"{repo_url}:{sample_trace['invocation_id']}"
-    assert key_passed_to_redis == expected_key, "Key passed to Redis does not match expected format"
+    assert (
+        key_passed_to_redis == expected_key
+    ), "Key passed to Redis does not match expected format"
 
     # Deserialize and normalize the data for comparison
     actual_data = json.loads(json_data_passed_to_redis)
@@ -64,4 +73,6 @@ def test_store_trace_log(client, mock_redis, sample_trace):
     expected_data = normalize_trace_data(sample_trace)
 
     # Compare normalized data
-    assert actual_data == expected_data, "Normalized data passed to Redis does not match expected data"
+    assert (
+        actual_data == expected_data
+    ), "Normalized data passed to Redis does not match expected data"

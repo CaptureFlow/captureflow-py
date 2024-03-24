@@ -1,8 +1,10 @@
-import pytest
 import json
-
 from pathlib import Path
+
+import pytest
+
 from src.utils.call_graph import CallGraph
+
 
 @pytest.fixture
 def sample_trace():
@@ -10,9 +12,10 @@ def sample_trace():
     with open(trace_path) as f:
         return json.load(f)
 
+
 def test_call_graph_build(sample_trace):
     call_graph = CallGraph(json.dumps(sample_trace))
-    
+
     assert call_graph.graph.number_of_nodes() > 0
     assert call_graph.graph.number_of_edges() > 0
 
@@ -22,13 +25,14 @@ def test_call_graph_build(sample_trace):
 
     for node_id in function_nodes:
         node = call_graph.graph.nodes[node_id]
-        assert node['function'] == "calculate_avg"
-        assert 'arguments' in node
-        assert 'return_value' in node
+        assert node["function"] == "calculate_avg"
+        assert "arguments" in node
+        assert "return_value" in node
+
 
 def test_call_graph_build_and_tags(sample_trace):
     call_graph = CallGraph(json.dumps(sample_trace))
-    
+
     assert call_graph.graph.number_of_nodes() > 0
     assert call_graph.graph.number_of_edges() > 0
 
@@ -42,8 +46,12 @@ def test_call_graph_build_and_tags(sample_trace):
     # Check we are able to differentiate between INTERNAL (interesting modules) and LIB modules (not-so-interesting)
     for node_id in internal_nodes:
         node = call_graph.graph.nodes[node_id]
-        assert node['tag'] == "INTERNAL", f"Node {node_id} expected to be INTERNAL, got {node['tag']}"
+        assert (
+            node["tag"] == "INTERNAL"
+        ), f"Node {node_id} expected to be INTERNAL, got {node['tag']}"
 
     for node_id in stdlib_nodes:
         node = call_graph.graph.nodes[node_id]
-        assert node['tag'] == "STDLIB", f"Node {node_id} expected to be STDLIB, got {node['tag']}"
+        assert (
+            node["tag"] == "STDLIB"
+        ), f"Node {node_id} expected to be STDLIB, got {node['tag']}"
