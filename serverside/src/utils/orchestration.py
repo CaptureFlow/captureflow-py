@@ -1,7 +1,7 @@
 import json
 import logging
-
 from typing import Any, Dict, List, Optional, Tuple
+
 from redis import Redis
 
 from src.utils.call_graph import CallGraph

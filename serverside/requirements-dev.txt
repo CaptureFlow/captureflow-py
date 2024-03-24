@@ -1,5 +1,6 @@
 annotated-types==0.6.0
 anyio==4.3.0
+black==24.3.0
 certifi==2024.2.2
 cffi==1.16.0
 charset-normalizer==3.3.2
@@ -13,9 +14,13 @@ httpcore==1.0.4
 httpx==0.27.0
 idna==3.6
 iniconfig==2.0.0
+isort==5.13.2
+mypy-extensions==1.0.0
 networkx==3.2.1
 openai==1.14.2
 packaging==24.0
+pathspec==0.12.1
+platformdirs==4.2.0
 pluggy==1.4.0
 pycparser==2.21
 pydantic==2.6.4

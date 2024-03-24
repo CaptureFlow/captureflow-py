@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from redis import Redis
@@ -28,23 +28,35 @@ def mock_redis_client(sample_trace_json):
     return mock_client
 
 
-def test_build_graphs_from_redis(mock_redis_client, sample_trace_json):
-    orchestrator = Orchestrator(
-        redis_client=mock_redis_client,
-        repo_url="https://github.com/NickKuts/capture_flow",
-    )
+@pytest.fixture
+def mock_repo_helper():
+    mock_helper = MagicMock()
+    mock_helper.enrich_callgraph_with_github_context.return_value = None
+    return mock_helper
 
-    call_graphs = orchestrator.build_graphs_from_redis(
-        mock_redis_client, "https://github.com/NickKuts/capture_flow"
-    )
 
-    # Assertions
-    assert isinstance(call_graphs, list)
-    assert all(isinstance(graph, CallGraph) for graph in call_graphs)
-    assert len(call_graphs) == 3  # Since we mocked three traces
+def test_build_graphs_from_redis(
+    mock_repo_helper, mock_redis_client, mock_openai_helper, sample_trace_json
+):
+    with patch(
+        "src.utils.orchestration.RepoHelper", return_value=mock_repo_helper
+    ), patch("src.utils.orchestration.OpenAIHelper", return_value=mock_openai_helper):
+        orchestrator = Orchestrator(
+            redis_client=mock_redis_client,
+            repo_url="https://github.com/NickKuts/capture_flow",
+        )
 
-    # Verify Redis client interaction
-    mock_redis_client.scan_iter.assert_called_once_with(
-        match="https://github.com/NickKuts/capture_flow:*"
-    )
-    assert mock_redis_client.get.call_count == 3
+        call_graphs = orchestrator.build_graphs_from_redis(
+            mock_redis_client, "https://github.com/NickKuts/capture_flow"
+        )
+
+        # Assertions
+        assert isinstance(call_graphs, list)
+        assert all(isinstance(graph, CallGraph) for graph in call_graphs)
+        assert len(call_graphs) == 3  # Since we mocked three traces
+
+        # Verify Redis client interaction
+        mock_redis_client.scan_iter.assert_called_once_with(
+            match="https://github.com/NickKuts/capture_flow:*"
+        )
+        assert mock_redis_client.get.call_count == 3
