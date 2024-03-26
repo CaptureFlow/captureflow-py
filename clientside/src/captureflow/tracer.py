@@ -1,22 +1,24 @@
 """Module for tracing function calls in Python applications with remote logging capability."""
+
 import asyncio
-import sys
+import inspect
+import json
 import linecache
 import logging
+import sys
 import uuid
-import json
-import requests
-import inspect
-
-from typing import Any, Dict, Callable
-from functools import wraps
 from datetime import datetime
+from functools import wraps
+from typing import Any, Callable, Dict
+
+import requests
 
 STDLIB_PATH = "/lib/python"
 LIBRARY_PATH = "/site-packages/"
 TEMP_FOLDER = "temp/"
 
 logger = logging.getLogger(__name__)
+
 
 class Tracer:
     def __init__(self, repo_url: str, server_base_url: str = "http://127.0.0.1:8000"):
@@ -26,6 +28,7 @@ class Tracer:
 
     def trace_endpoint(self, func: Callable) -> Callable:
         """Decorator to trace endpoint function calls."""
+
         # TODO: Give option to specify log "verbosity"
         #       Max verbosity                           => need "heavy" sys.settrace()
         #           Subgoal: investigate sampling of requests (e.g. log every N-th request) to make it less "heavy"
@@ -39,15 +42,21 @@ class Tracer:
                 "endpoint": func.__qualname__,
                 "input": {
                     "args": [self._serialize_variable(arg) for arg in args],
-                    "kwargs": {k: self._serialize_variable(v) for k, v in kwargs.items()}
+                    "kwargs": {
+                        k: self._serialize_variable(v) for k, v in kwargs.items()
+                    },
                 },
                 "execution_trace": [],
-                "log_filename": f"{TEMP_FOLDER}{func.__name__}_trace_{invocation_id}.json"
+                "log_filename": f"{TEMP_FOLDER}{func.__name__}_trace_{invocation_id}.json",
             }
 
             sys.settrace(self._setup_trace(context))
             try:
-                result = await func(*args, **kwargs) if asyncio.iscoroutinefunction(func) else func(*args, **kwargs)
+                result = (
+                    await func(*args, **kwargs)
+                    if asyncio.iscoroutinefunction(func)
+                    else func(*args, **kwargs)
+                )
                 context["output"] = {"result": self._serialize_variable(result)}
             finally:
                 sys.settrace(None)
@@ -56,12 +65,17 @@ class Tracer:
             return result
 
         return wrapper
-    
+
     def _send_trace_log(self, context: Dict[str, Any]) -> None:
         headers = {"Content-Type": "application/json"}
         try:
             # TODO: move param to HTTP body
-            response = requests.post(self.trace_endpoint_url, params={"repository-url": self.repo_url}, json=context, headers=headers)
+            response = requests.post(
+                self.trace_endpoint_url,
+                params={"repository-url": self.repo_url},
+                json=context,
+                headers=headers,
+            )
             if response.status_code != 200:
                 logger.warning(f"CaptureFlow server responded: {response.status_code}")
         except Exception as e:
@@ -79,10 +93,7 @@ class Tracer:
         except Exception as e:
             json_value = str(value)
 
-        return {
-            "python_type": str(type(value)),
-            "json_serialized": json_value
-        }
+        return {"python_type": str(type(value)), "json_serialized": json_value}
 
     def _get_file_tag(self, file_path: str) -> str:
         """Determine the file tag based on the file path."""
@@ -95,7 +106,9 @@ class Tracer:
     def _setup_trace(self, context: Dict[str, Any]) -> Callable:
         """Setup the trace function."""
         context["call_stack"] = []
-        return lambda frame, event, arg: self._trace_function_calls(frame, event, arg, context)
+        return lambda frame, event, arg: self._trace_function_calls(
+            frame, event, arg, context
+        )
 
     def _capture_arguments(self, frame) -> Dict[str, Any]:
         """
@@ -103,19 +116,21 @@ class Tracer:
         This simplified version does not distinguish between args and kwargs based on the function's signature.
         """
         args, _, _, values = inspect.getargvalues(frame)
-        
+
         serialized_args = []
         serialized_kwargs = {}
         for arg in args:
             serialized_value = self._serialize_variable(values[arg])
-            if arg == 'args' or arg.startswith('arg'):
+            if arg == "args" or arg.startswith("arg"):
                 serialized_args.append(serialized_value)
             else:
                 serialized_kwargs[arg] = serialized_value
-        
+
         return {"args": serialized_args, "kwargs": serialized_kwargs}
 
-    def _trace_function_calls(self, frame, event, arg, context: Dict[str, Any]) -> Callable:
+    def _trace_function_calls(
+        self, frame, event, arg, context: Dict[str, Any]
+    ) -> Callable:
         """Trace function calls and capture relevant data."""
         code = frame.f_code
         func_name, file_name, line_no = code.co_name, code.co_filename, frame.f_lineno
@@ -135,23 +150,29 @@ class Tracer:
             "source_line": linecache.getline(file_name, line_no).strip(),
             "tag": tag,
         }
-    
+
         if event == "call":
             trace_event["arguments"] = self._capture_arguments(frame)
             context["call_stack"].append(trace_event)
         elif event == "return":
             if context["call_stack"]:
-                context["call_stack"][-1]["return_value"] = self._serialize_variable(arg)
+                context["call_stack"][-1]["return_value"] = self._serialize_variable(
+                    arg
+                )
                 context["call_stack"].pop()
         elif event == "exception":
             exception_type, exception_value, _ = arg
-            trace_event.update({
-                "exception_type": str(exception_type.__name__),
-                "exception_message": str(exception_value),
-            })
+            trace_event.update(
+                {
+                    "exception_type": str(exception_type.__name__),
+                    "exception_message": str(exception_value),
+                }
+            )
             if context["call_stack"]:
                 context["call_stack"][-1].update(trace_event)
 
         context["execution_trace"].append(trace_event)
 
-        return lambda frame, event, arg: self._trace_function_calls(frame, event, arg, context)
+        return lambda frame, event, arg: self._trace_function_calls(
+            frame, event, arg, context
+        )
