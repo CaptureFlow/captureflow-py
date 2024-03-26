@@ -2,6 +2,7 @@
 import asyncio
 import sys
 import linecache
+import logging
 import uuid
 import json
 import requests
@@ -15,6 +16,8 @@ STDLIB_PATH = "/lib/python"
 LIBRARY_PATH = "/site-packages/"
 TEMP_FOLDER = "temp/"
 
+logger = logging.getLogger(__name__)
+
 class Tracer:
     def __init__(self, repo_url: str, server_base_url: str = "http://127.0.0.1:8000"):
         """Initialize the tracer with the repository URL and optionally the remote logging URL."""
@@ -23,6 +26,10 @@ class Tracer:
 
     def trace_endpoint(self, func: Callable) -> Callable:
         """Decorator to trace endpoint function calls."""
+        # TODO: Give option to specify log "verbosity"
+        #       Max verbosity                           => need "heavy" sys.settrace()
+        #           Subgoal: investigate sampling of requests (e.g. log every N-th request) to make it less "heavy"
+        #       Min verbosity (e.g. only exceptions)    => we could patch Flask/FastAPI methods and that would be better performance wise
         @wraps(func)
         async def wrapper(*args, **kwargs) -> Any:
             invocation_id = str(uuid.uuid4())
@@ -52,10 +59,14 @@ class Tracer:
     
     def _send_trace_log(self, context: Dict[str, Any]) -> None:
         headers = {"Content-Type": "application/json"}
-        # Include the repository URL as a query parameter for the trace data
-        response = requests.post(self.trace_endpoint_url, params={"repository-url": self.repo_url}, json=context, headers=headers)
-        if response.status_code != 200:
-            print(f"Failed to send trace log, status code: {response.status_code}")
+        try:
+            # TODO: move param to HTTP body
+            response = requests.post(self.trace_endpoint_url, params={"repository-url": self.repo_url}, json=context, headers=headers)
+            if response.status_code != 200:
+                logger.warning(f"CaptureFlow server responded: {response.status_code}")
+        except Exception as e:
+            # Handle or log the exception without raising it
+            logger.warning(f"Exception during logging: {e}")
 
     def _write_trace_log(self, context: Dict[str, Any]) -> None:
         """Write the trace log to a file."""
@@ -64,9 +75,10 @@ class Tracer:
 
     def _serialize_variable(self, value: Any) -> Dict[str, Any]:
         try:
-            json_value = json.dumps(value, default=str)
-        except TypeError:
+            json_value = json.dumps(value)
+        except Exception as e:
             json_value = str(value)
+
         return {
             "python_type": str(type(value)),
             "json_serialized": json_value
@@ -131,6 +143,14 @@ class Tracer:
             if context["call_stack"]:
                 context["call_stack"][-1]["return_value"] = self._serialize_variable(arg)
                 context["call_stack"].pop()
+        elif event == "exception":
+            exception_type, exception_value, _ = arg
+            trace_event.update({
+                "exception_type": str(exception_type.__name__),
+                "exception_message": str(exception_value),
+            })
+            if context["call_stack"]:
+                context["call_stack"][-1].update(trace_event)
 
         context["execution_trace"].append(trace_event)
 
