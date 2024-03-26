@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  server_build:
 
     runs-on: ubuntu-latest
 
@@ -23,23 +23,60 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install dependencies
+    - name: Install server dependencies
       run: |
         python -m pip install --upgrade pip
         cd serverside/
         pip install -r requirements-dev.txt
 
-    - name: Run pytest
+    - name: Run server pytest
       run: |
         cd serverside/
         pytest
 
-    - name: Check with black
+    - name: Check server code with black
       run: |
         cd serverside/
         black --check .
 
-    - name: Check with isort
+    - name: Check server code with isort
       run: |
         cd serverside/
+        isort --check-only .
+
+  client_build:
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: [ 3.11 ]
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install client dependencies
+      run: |
+        python -m pip install --upgrade pip
+        cd clientside/
+        pip install -r requirements-dev.txt
+
+    - name: Run client pytest
+      run: |
+        cd clientside/
+        pytest
+
+    - name: Check client code with black
+      run: |
+        cd clientside/
+        black --check .
+
+    - name: Check client code with isort
+      run: |
+        cd clientside/
         isort --check-only .
