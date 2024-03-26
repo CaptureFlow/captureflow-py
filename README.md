@@ -17,8 +17,8 @@ Leverage the deep context embedded in your deployed app to fuel LLMs, turning bo
 | 3   | First heuristic method for LLM-based MR validation.                                                       | ✅ |
 | 4   | Improve RAG pipeline for code-generation.                                                                 |       🔨     |
 | 4.1 | Send more relevant modules than just parent_function and child_functions; Implement ctags and more standardized methods of code parsing. | 🔨        |
-| 5   | Procedural / sandbox based AI-suggestion validation.                                                      | 📝   |
-| 6   | Attempt to fetch relevant tests.                                                                          |             |
+| 5   | Auto bug-fix based on 'exception' traces                                                      | 📝   |
+| 6   | Attempt to extend existing test suite. Focus on integratin test <-> trace data "synergy".                                                                          |      📝       |
 | 6.1 | Must be do-able to join execution graph during test execution with acquired traces. Build system can be probably re-created using CI/CD configs? What is easy?                               | 📝        |
 
 

@@ -2,7 +2,7 @@
 
 Sometimes, there's a need to extend an HTTP server to observe how the captureflow tracer would track events, like what JSONs would it send to serverside. You can check `traces/sample_trace.json`.
 
-Note that, it might be easier to corresponding relevant unittest, such as `tests/test_fastapi_tracer.py`. This more for in-the-wild testing.
+Note that for pinpointing specific functionalities, corresponding unit tests (e.g., `tests/test_fastapi_tracer.py``) might offer a more straightforward approach. This method is more valuable for dynamic, real-world testing scenarios.
 
 ## Running locally
 
