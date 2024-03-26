@@ -1,0 +1,17 @@
+## Why?
+
+Sometimes, there's a need to extend an HTTP server to observe how the captureflow tracer would track events, like what JSONs would it send to serverside. You can check `traces/sample_trace.json`.
+
+Note that, it might be easier to corresponding relevant unittest, such as `tests/test_fastapi_tracer.py`. This more for in-the-wild testing.
+
+## Running locally
+
+For the time being, I've opted not to encapsulate such applications within virtual environments—doing so would introduce additional complexity, including the need to initialize server-side components and retrieve data from Redis.
+
+Instead, you can:
+
+1. Install captureflow directly from the local source code using ./install_package.sh.
+2. Install a minimal set of Python dependencies as listed in requirements.txt.
+3. Execute a sample cURL request to the endpoints specified in server.py, for example, curl http://localhost:8000/fetch_similar/.
+4. This process will populate the traces/ folder with trace logs.
+

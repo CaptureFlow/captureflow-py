@@ -5,6 +5,7 @@ import inspect
 import json
 import linecache
 import logging
+import os
 import sys
 import uuid
 from datetime import datetime
@@ -67,25 +68,24 @@ class Tracer:
         return wrapper
 
     def _send_trace_log(self, context: Dict[str, Any]) -> None:
-        headers = {"Content-Type": "application/json"}
+        if os.environ.get("CAPTUREFLOW_DEV_SERVER") == "true":
+            log_filename = f"trace_{context['invocation_id']}.json"
+            with open(log_filename, "w") as f:
+                json.dump(context, f, indent=4)
+
         try:
-            # TODO: move param to HTTP body
             response = requests.post(
                 self.trace_endpoint_url,
-                params={"repository-url": self.repo_url},
+                params={
+                    "repository-url": self.repo_url
+                },  # TODO: move param to HTTP body
                 json=context,
-                headers=headers,
+                headers={"Content-Type": "application/json"},
             )
             if response.status_code != 200:
-                logger.warning(f"CaptureFlow server responded: {response.status_code}")
+                logger.info(f"CaptureFlow server responded: {response.status_code}")
         except Exception as e:
-            # Handle or log the exception without raising it
-            logger.warning(f"Exception during logging: {e}")
-
-    def _write_trace_log(self, context: Dict[str, Any]) -> None:
-        """Write the trace log to a file."""
-        with open(context["log_filename"], "w") as log_file:
-            json.dump(context, log_file, indent=4)
+            logger.info(f"Exception during logging: {e}")
 
     def _serialize_variable(self, value: Any) -> Dict[str, Any]:
         try:
