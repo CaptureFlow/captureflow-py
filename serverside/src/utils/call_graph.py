@@ -38,13 +38,8 @@ class CallGraph:
             function_name = attrs["function"]
             file_line = attrs["file_line"]
             tag = attrs["tag"]
-            successors = ", ".join(
-                self.graph.nodes[succ]["function"]
-                for succ in self.graph.successors(node)
-            )
-            logging.info(
-                f"Function: {function_name} ({file_line}, {tag}) -> {successors or 'No outgoing calls'}"
-            )
+            successors = ", ".join(self.graph.nodes[succ]["function"] for succ in self.graph.successors(node))
+            logging.info(f"Function: {function_name} ({file_line}, {tag}) -> {successors or 'No outgoing calls'}")
 
     def export_for_graphviz(self) -> None:
         """Exports the graph in a format compatible with Graphviz."""

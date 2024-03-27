@@ -39,47 +39,30 @@ class Orchestrator:
             raise Exception("There is no function that can be easily improved.")
 
         # Improve and validate the function implementation
-        votes, new_implementation, node_changed = self.improve_and_validate(
-            graphs, function_name
-        )
+        votes, new_implementation, node_changed = self.improve_and_validate(graphs, function_name)
 
         # Decide whether to create a pull request based on the validation outcome
         if self.should_create_pull_request(votes):
             logger.info("Majority approval received. Creating a pull request...")
-            self.repo_helper.create_pull_request_with_new_function(
-                node_changed, new_implementation, self.gpt_helper
-            )
+            self.repo_helper.create_pull_request_with_new_function(node_changed, new_implementation, self.gpt_helper)
         else:
             logger.warn("Insufficient approval for changes. No pull request created.")
 
-    def find_improvement_candidates(
-        self, graphs: List[CallGraph], top_n: int = 5
-    ) -> Dict[str, float]:
+    def find_improvement_candidates(self, graphs: List[CallGraph], top_n: int = 5) -> Dict[str, float]:
         N_APPEARANCES = 1
         function_nodes = {}
 
         for graph in graphs:
             for node_id, attrs in graph.graph.nodes(data=True):
-                if (
-                    "function" in attrs
-                    and attrs["tag"] == "INTERNAL"
-                    and "github_function_implementation" in attrs
-                ):
+                if "function" in attrs and attrs["tag"] == "INTERNAL" and "github_function_implementation" in attrs:
                     function_name = attrs["function"]
-                    if (
-                        function_name not in function_nodes
-                        or function_nodes[function_name]["count"] < N_APPEARANCES
-                    ):
+                    if function_name not in function_nodes or function_nodes[function_name]["count"] < N_APPEARANCES:
                         function_nodes[function_name] = {"node": attrs, "count": 1}
                     else:
                         function_nodes[function_name]["count"] += 1
 
         # Filter candidates based on N_APPEARANCES threshold
-        preselected_candidates = {
-            fn: data
-            for fn, data in function_nodes.items()
-            if data["count"] >= N_APPEARANCES
-        }
+        preselected_candidates = {fn: data for fn, data in function_nodes.items() if data["count"] >= N_APPEARANCES}
 
         # Score candidates using GPT and collect results
         candidate_scores = {}
@@ -92,25 +75,17 @@ class Orchestrator:
             try:
                 gpt_response_dict = json.loads(gpt_response)
             except json.JSONDecodeError:
-                logger.exception(
-                    f"Failed to decode GPT response for {candidate}: {gpt_response}"
-                )
+                logger.exception(f"Failed to decode GPT response for {candidate}: {gpt_response}")
                 continue  # Skip to the next candidate if parsing fails
 
             # TODO: improve
             if gpt_response_dict.get("easy_to_optimize") == "EASY_TO_OPTIMIZE":
                 candidate_scores[candidate] = gpt_response_dict.get("quality_score", 0)
 
-        final_candidates = {
-            fn: score for fn, score in candidate_scores.items() if score > 5
-        }
+        final_candidates = {fn: score for fn, score in candidate_scores.items() if score > 5}
 
         # Sort and return the top N scored candidates based on their quality score
-        top_candidates = dict(
-            sorted(final_candidates.items(), key=lambda item: item[1], reverse=True)[
-                :top_n
-            ]
-        )
+        top_candidates = dict(sorted(final_candidates.items(), key=lambda item: item[1], reverse=True)[:top_n])
 
         return top_candidates
 
@@ -129,15 +104,11 @@ class Orchestrator:
 
         if new_implementation:
             logger.warning("New implementation extracted. Validating...")
-            votes = validate_graphs(
-                graphs, new_implementation, function_name, self.gpt_helper
-            )
+            votes = validate_graphs(graphs, new_implementation, function_name, self.gpt_helper)
             logger.info("Validation votes:", votes)
             return votes, new_implementation, nodes[0]
         else:
-            logger.exception(
-                "Failed to extract a new implementation from GPT's response."
-            )
+            logger.exception("Failed to extract a new implementation from GPT's response.")
             return {"yes": 0, "maybe": 0, "no": 1}, None, None
 
     def should_create_pull_request(self, votes: Dict[str, int]) -> bool:
@@ -181,9 +152,7 @@ def validate_graphs(
         for node_id, node in graph.graph.nodes(data=True):
             if node.get("function") == function_name and node.get("tag") == "INTERNAL":
                 updated_node = node.copy()
-                updated_node["github_function_implementation"] = {
-                    "content": new_implementation
-                }
+                updated_node["github_function_implementation"] = {"content": new_implementation}
                 simulation_q = gpt_helper.generate_simulation_query(graph, updated_node)
                 answer = gpt_helper.call_chatgpt(simulation_q)
 

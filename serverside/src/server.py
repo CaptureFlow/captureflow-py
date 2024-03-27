@@ -38,9 +38,7 @@ class TraceData(BaseModel):
 
 # Store new trace
 @app.post("/api/v1/traces")
-async def store_trace_log(
-    trace_data: TraceData, repo_url: str = Query(..., alias="repository-url")
-):
+async def store_trace_log(trace_data: TraceData, repo_url: str = Query(..., alias="repository-url")):
     trace_data_json = trace_data.json()
 
     # Updated to use the query parameter for repo_url

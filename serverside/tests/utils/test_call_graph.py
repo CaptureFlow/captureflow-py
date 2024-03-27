@@ -46,12 +46,8 @@ def test_call_graph_build_and_tags(sample_trace):
     # Check we are able to differentiate between INTERNAL (interesting modules) and LIB modules (not-so-interesting)
     for node_id in internal_nodes:
         node = call_graph.graph.nodes[node_id]
-        assert (
-            node["tag"] == "INTERNAL"
-        ), f"Node {node_id} expected to be INTERNAL, got {node['tag']}"
+        assert node["tag"] == "INTERNAL", f"Node {node_id} expected to be INTERNAL, got {node['tag']}"
 
     for node_id in stdlib_nodes:
         node = call_graph.graph.nodes[node_id]
-        assert (
-            node["tag"] == "STDLIB"
-        ), f"Node {node_id} expected to be STDLIB, got {node['tag']}"
+        assert node["tag"] == "STDLIB", f"Node {node_id} expected to be STDLIB, got {node['tag']}"
