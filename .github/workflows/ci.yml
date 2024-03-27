@@ -37,7 +37,7 @@ jobs:
     - name: Check server code with black
       run: |
         cd serverside/
-        black --check .
+        black --check . --line-length 120
 
     - name: Check server code with isort
       run: |
@@ -74,7 +74,7 @@ jobs:
     - name: Check client code with black
       run: |
         cd clientside/
-        black --check .
+        black --check . --line-length 120
 
     - name: Check client code with isort
       run: |
