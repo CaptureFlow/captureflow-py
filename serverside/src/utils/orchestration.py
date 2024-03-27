@@ -21,7 +21,6 @@ class Orchestrator:
         self.gpt_helper = OpenAIHelper()
 
     def run(self):
-        # Build call graphs from logs
         graphs = self.build_graphs_from_redis(self.redis_client, self.repo_url)
         function_name = None
 
@@ -98,15 +97,10 @@ class Orchestrator:
                 )
                 continue  # Skip to the next candidate if parsing fails
 
-            # Only store scores for candidates marked as easy to optimize
+            # TODO: improve
             if gpt_response_dict.get("easy_to_optimize") == "EASY_TO_OPTIMIZE":
-                # Directly use the quality score from the GPT response for candidates considered easy to improve
-                candidate_scores[candidate] = gpt_response_dict.get(
-                    "quality_score", 0
-                )  # Default to 0 if not available
+                candidate_scores[candidate] = gpt_response_dict.get("quality_score", 0)
 
-        # Assuming you want to proceed only with candidates having a specific minimum quality score,
-        # for example, keep only those with scores > 5
         final_candidates = {
             fn: score for fn, score in candidate_scores.items() if score > 5
         }
