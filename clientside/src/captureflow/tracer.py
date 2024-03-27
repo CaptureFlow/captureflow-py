@@ -44,9 +44,7 @@ class Tracer:
                 "endpoint": func.__qualname__,
                 "input": {
                     "args": [self._serialize_variable(arg) for arg in args],
-                    "kwargs": {
-                        k: self._serialize_variable(v) for k, v in kwargs.items()
-                    },
+                    "kwargs": {k: self._serialize_variable(v) for k, v in kwargs.items()},
                 },
                 "execution_trace": [],
                 "log_filename": f"{TEMP_FOLDER}{func.__name__}_trace_{invocation_id}.json",
@@ -54,11 +52,7 @@ class Tracer:
 
             sys.settrace(self._setup_trace(context))
             try:
-                result = (
-                    await func(*args, **kwargs)
-                    if asyncio.iscoroutinefunction(func)
-                    else func(*args, **kwargs)
-                )
+                result = await func(*args, **kwargs) if asyncio.iscoroutinefunction(func) else func(*args, **kwargs)
                 context["output"] = {"result": self._serialize_variable(result)}
             finally:
                 sys.settrace(None)
@@ -77,9 +71,7 @@ class Tracer:
         try:
             response = requests.post(
                 self.trace_endpoint_url,
-                params={
-                    "repository-url": self.repo_url
-                },  # TODO: move param to HTTP body
+                params={"repository-url": self.repo_url},  # TODO: move param to HTTP body
                 json=context,
                 headers={"Content-Type": "application/json"},
             )
@@ -107,9 +99,7 @@ class Tracer:
     def _setup_trace(self, context: Dict[str, Any]) -> Callable:
         """Setup the trace function."""
         context["call_stack"] = []
-        return lambda frame, event, arg: self._trace_function_calls(
-            frame, event, arg, context
-        )
+        return lambda frame, event, arg: self._trace_function_calls(frame, event, arg, context)
 
     def _capture_arguments(self, frame) -> Dict[str, Any]:
         """
@@ -129,9 +119,7 @@ class Tracer:
 
         return {"args": serialized_args, "kwargs": serialized_kwargs}
 
-    def _trace_function_calls(
-        self, frame, event, arg, context: Dict[str, Any]
-    ) -> Callable:
+    def _trace_function_calls(self, frame, event, arg, context: Dict[str, Any]) -> Callable:
         """Trace function calls and capture relevant data."""
         code = frame.f_code
         func_name, file_name, line_no = code.co_name, code.co_filename, frame.f_lineno
@@ -158,9 +146,7 @@ class Tracer:
         elif event == "return":
             trace_event["return_value"] = self._capture_arguments(frame)
             if context["call_stack"]:
-                context["call_stack"][-1]["return_value"] = self._serialize_variable(
-                    arg
-                )
+                context["call_stack"][-1]["return_value"] = self._serialize_variable(arg)
                 context["call_stack"].pop()
         elif event == "exception":
             exc_type, exc_value, exc_traceback = arg
@@ -172,6 +158,4 @@ class Tracer:
 
         context["execution_trace"].append(trace_event)
 
-        return lambda frame, event, arg: self._trace_function_calls(
-            frame, event, arg, context
-        )
+        return lambda frame, event, arg: self._trace_function_calls(frame, event, arg, context)

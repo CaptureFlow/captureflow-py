@@ -30,17 +30,13 @@ async def test_trace_endpoint_fastapi():
             assert response.json() == {"result": 5}
 
         mock_log.assert_called_once()
-        log_data = mock_log.call_args[0][
-            0
-        ]  # Get the context data passed to _send_trace_log
+        log_data = mock_log.call_args[0][0]  # Get the context data passed to _send_trace_log
 
         assert log_data["endpoint"] == "add"
 
         # Verify the input parameters were captured correctly
         assert "x" in log_data["input"]["kwargs"] and "y" in log_data["input"]["kwargs"]
-        assert log_data["input"]["kwargs"]["x"]["json_serialized"] == json.dumps(
-            2
-        )  # Use json.dumps for consistency
+        assert log_data["input"]["kwargs"]["x"]["json_serialized"] == json.dumps(2)  # Use json.dumps for consistency
         assert log_data["input"]["kwargs"]["y"]["json_serialized"] == json.dumps(3)
 
         # Ensure the execution trace contains expected data
@@ -48,9 +44,7 @@ async def test_trace_endpoint_fastapi():
         assert log_data["execution_trace"][0]["event"] == "call"
 
         # Update output assertion to match the expected serialization format
-        assert log_data["output"]["result"]["json_serialized"] == json.dumps(
-            {"result": 5}
-        )
+        assert log_data["output"]["result"]["json_serialized"] == json.dumps({"result": 5})
 
 
 @app.get("/divide/{x}/{y}")
