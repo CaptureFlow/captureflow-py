@@ -48,9 +48,7 @@ class RepoHelper:
             for repo in installation.get_repos():
                 if repo.html_url == repo_url:
                     return repo
-        raise ValueError(
-            f"No matching installation was found for {repo_url}. Maybe the app is not installed yet."
-        )
+        raise ValueError(f"No matching installation was found for {repo_url}. Maybe the app is not installed yet.")
 
     def enrich_callgraph_with_github_context(self, callgraph: CallGraph) -> None:
         for node_id in callgraph.graph.nodes:
@@ -87,19 +85,10 @@ class RepoHelper:
                     {
                         "file_path": file_content.path,
                         "line_start": node.lineno,
-                        "line_end": (
-                            node.end_lineno
-                            if hasattr(node, "end_lineno")
-                            else node.lineno
-                        ),
+                        "line_end": (node.end_lineno if hasattr(node, "end_lineno") else node.lineno),
                         "content": "\n".join(
                             file_data.splitlines()[
-                                node.lineno
-                                - 1 : (
-                                    node.end_lineno
-                                    if hasattr(node, "end_lineno")
-                                    else node.lineno
-                                )
+                                node.lineno - 1 : (node.end_lineno if hasattr(node, "end_lineno") else node.lineno)
                             ]
                         ),
                     }
@@ -107,9 +96,7 @@ class RepoHelper:
         except Exception as e:
             logger.exception(f"Error processing {file_content.path}: {e}")
 
-    def lookup_index(
-        self, symbol_name: str, symbol_type: str
-    ) -> Optional[Dict[str, Any]]:
+    def lookup_index(self, symbol_name: str, symbol_type: str) -> Optional[Dict[str, Any]]:
         return self.index.get(symbol_type, {}).get(symbol_name)
 
     def enrich_node_with_github_data(self, node):
@@ -136,13 +123,9 @@ class RepoHelper:
 
         # Load the whole file content
         try:
-            file_content = self.gh_repo.get_contents(
-                def_info["file_path"]
-            ).decoded_content.decode("utf-8")
+            file_content = self.gh_repo.get_contents(def_info["file_path"]).decoded_content.decode("utf-8")
         except Exception as e:
-            logger.exception(
-                f"Error fetching file content for {def_info['file_path']}: {e}"
-            )
+            logger.exception(f"Error fetching file content for {def_info['file_path']}: {e}")
             file_content = "Error loading file content"
 
         # Update the node with GitHub data
@@ -158,9 +141,7 @@ class RepoHelper:
             }
         )
 
-    def create_pull_request_with_new_function(
-        self, node, new_implementation: str, gpt_helper: OpenAIHelper
-    ):
+    def create_pull_request_with_new_function(self, node, new_implementation: str, gpt_helper: OpenAIHelper):
         """
         Update the implementation of a specific function based on node information,
         commit the changes to a new branch, and create a pull request.
@@ -174,18 +155,12 @@ class RepoHelper:
 
         # Replace old function implementation with new content within the source code lines
         new_code_lines = (
-            source_code_lines[: start_line - 1]
-            + new_implementation.splitlines()
-            + source_code_lines[end_line:]
+            source_code_lines[: start_line - 1] + new_implementation.splitlines() + source_code_lines[end_line:]
         )
         updated_source_code = "\n".join(new_code_lines)
 
-        fix_styles_query = gpt_helper.generate_after_insert_style_query(
-            updated_source_code, function_name
-        )
-        updated_source_code = gpt_helper.extract_first_code_block(
-            gpt_helper.call_chatgpt(fix_styles_query)
-        )
+        fix_styles_query = gpt_helper.generate_after_insert_style_query(updated_source_code, function_name)
+        updated_source_code = gpt_helper.extract_first_code_block(gpt_helper.call_chatgpt(fix_styles_query))
 
         # Create a new branch for this update
         new_branch_name = f"update-{function_name}-{uuid.uuid4().hex}"
@@ -204,8 +179,8 @@ class RepoHelper:
 
         # Create a pull request from the new branch to the main branch
         pr_title = f"Improve {function_name} implementation"
-        pr_body = "This pull request updates the implementation of `{function_name}` for better performance/readability."
-        pr = self.gh_repo.create_pull(
-            title=pr_title, body=pr_body, head=new_branch_name, base="main"
+        pr_body = (
+            "This pull request updates the implementation of `{function_name}` for better performance/readability."
         )
+        pr = self.gh_repo.create_pull(title=pr_title, body=pr_body, head=new_branch_name, base="main")
         logger.info(f"Pull request created: {pr.html_url}")
