@@ -19,7 +19,8 @@ app = FastAPI()
 @app.get("/calculate_avg/")
 @tracer.trace_endpoint
 def calculate_average():
-    sample_array = []
+    # sample_array = [] # That would produce an exception
+    sample_array = [1, 2, 3, 4, 5]
     return {"message": "Calculated average of even numbers", "average": calculate_avg(sample_array)}
 
 

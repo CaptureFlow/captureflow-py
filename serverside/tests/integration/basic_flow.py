@@ -19,23 +19,17 @@ def test_store_traces_and_generate_mr():
     sample_trace_2 = load_sample_trace()
 
     # Store
-    response_1 = requests.post(
-        f"{BASE_URL}/traces", params={"repository-url": REPO_URL}, json=sample_trace_1
-    )
+    response_1 = requests.post(f"{BASE_URL}/traces", params={"repository-url": REPO_URL}, json=sample_trace_1)
     assert response_1.status_code == 200
     assert response_1.json()["message"] == "Trace log saved successfully"
 
     # Store
-    response_2 = requests.post(
-        f"{BASE_URL}/traces", params={"repository-url": REPO_URL}, json=sample_trace_2
-    )
+    response_2 = requests.post(f"{BASE_URL}/traces", params={"repository-url": REPO_URL}, json=sample_trace_2)
     assert response_2.status_code == 200
     assert response_2.json()["message"] == "Trace log saved successfully"
 
     # Generate
-    response_mr = requests.post(
-        f"{BASE_URL}/merge-requests", params={"repository-url": REPO_URL}
-    )
+    response_mr = requests.post(f"{BASE_URL}/merge-requests", params={"repository-url": REPO_URL})
     assert response_mr.status_code == 200
     assert response_mr.json()["message"] == "MR generation process started successfully"
 
