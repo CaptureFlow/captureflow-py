@@ -160,16 +160,6 @@ class Tracer:
                     arg
                 )
                 context["call_stack"].pop()
-        elif event == "exception":
-            exception_type, exception_value, _ = arg
-            trace_event.update(
-                {
-                    "exception_type": str(exception_type.__name__),
-                    "exception_message": str(exception_value),
-                }
-            )
-            if context["call_stack"]:
-                context["call_stack"][-1].update(trace_event)
 
         context["execution_trace"].append(trace_event)
 

@@ -18,15 +18,12 @@ class CallGraph:
 
         for event in data["execution_trace"]:
             if event["event"] == "call":
-                # Create a node attribute dictionary directly
                 node_attrs = {
                     "function": event["function"],
                     "file_line": f"{event['file']}:{event['line']}",
                     "tag": event.get("tag", ["INTERNAL"]),
-                    "arguments": event.get("arguments", {}),  # Added arguments
-                    "return_value": event.get(
-                        "return_value", {}
-                    ),  # Placeholder for return value, to be updated on 'return' event
+                    "arguments": event.get("arguments", {}),
+                    "return_value": event.get("return_value", {}),
                 }
                 self.graph.add_node(event["id"], **node_attrs)
 
@@ -63,21 +60,39 @@ class CallGraph:
                 matching_nodes.append(node)
         return matching_nodes
 
-    def __repr__(self) -> str:
-        """Generates a string representation of the call graph."""
-        summary = f"CallGraph with {self.graph.number_of_nodes()} nodes and {self.graph.number_of_edges()} edges\n"
-        detailed_view = "Sample connections:\n"
-        for i, (node, data) in enumerate(self.graph.nodes(data=True)):
-            if i >= 100:  # Limit the number of nodes displayed
-                detailed_view += "...\n"
-                break
-            function_name = data["function"]
-            file_line = data["file_line"]
-            tag = data["tag"]
-            successors = ", ".join(
-                self.graph.nodes[succ]["function"]
-                for succ in self.graph.successors(node)
-            )
-            detailed_view += f"  {function_name} ({file_line}, {tag}) -> {successors or 'No outgoing calls'}\n"
+    def draw(self, output_filename="func_call_graph"):
+        from graphviz import Digraph
 
-        return summary + detailed_view
+        dot = Digraph(comment="Function Call Graph")
+        color_mapping = {"STDLIB": "gray", "LIBRARY": "blue", "INTERNAL": "white"}
+
+        nodes = [(node, self.graph.nodes[node]) for node in self.graph.nodes()]
+        edges = list(self.graph.edges())
+
+        for node, attrs in nodes:
+            func_name = attrs["function"]
+            tag = attrs["tag"]
+            file_line = attrs["file_line"]
+            arguments = attrs["arguments"]
+            return_value = attrs["return_value"]
+            node_color = color_mapping.get(tag, "white")
+
+            label = f"{func_name}\n{file_line}\n[{tag}]\nInput:{arguments}\nReturns:{return_value}"
+            dot.node(node, label=label, style="filled", fillcolor=node_color)
+
+        for u, v in edges:
+            dot.edge(u, v)
+
+        dot.render("func_call_graph", view=True)
+
+        return dot
+
+
+if __name__ == "__main__":
+    log_file_path = "/Users/nikitakutc/projects/captureflow-py/serverside/tests/assets/sample_trace_with_exception.json"
+    with open(log_file_path, "r") as file:
+        log_data = file.read()
+
+    call_graph = CallGraph(log_data)
+    call_graph.draw()
+    print(f"Generated call graph has been saved.")
