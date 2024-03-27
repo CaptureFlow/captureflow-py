@@ -8,6 +8,7 @@ import logging
 import os
 import sys
 import uuid
+import traceback
 from datetime import datetime
 from functools import wraps
 from typing import Any, Callable, Dict
@@ -155,11 +156,19 @@ class Tracer:
             trace_event["arguments"] = self._capture_arguments(frame)
             context["call_stack"].append(trace_event)
         elif event == "return":
+            trace_event["return_value"] = self._capture_arguments(frame)
             if context["call_stack"]:
                 context["call_stack"][-1]["return_value"] = self._serialize_variable(
                     arg
                 )
                 context["call_stack"].pop()
+        elif event == "exception":
+            exc_type, exc_value, exc_traceback = arg
+            trace_event["exception_info"] = {
+                "type": str(exc_type.__name__),
+                "value": str(exc_value),
+                "traceback": traceback.format_tb(exc_traceback),
+            }
 
         context["execution_trace"].append(trace_event)
 

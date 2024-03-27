@@ -1,6 +1,7 @@
 import os
 
 from fastapi import FastAPI, HTTPException
+from utilz import calculate_avg
 
 from captureflow.tracer import Tracer
 
@@ -15,25 +16,11 @@ tracer = Tracer(
 app = FastAPI()
 
 
-def calculate_avg(sample_array):
-    filtered_array = [num for num in sample_array if num % 2 == 0]
-    if filtered_array:
-        return sum(filtered_array) / len(filtered_array)
-    else:
-        return 0
-
-
 @app.get("/calculate_avg/")
 @tracer.trace_endpoint
-def calculate_average(query: str):
-    try:
-        sample_array = [int(x) for x in query.split(",")]
-    except ValueError:
-        raise HTTPException(
-            status_code=400, detail="Query must be a comma-separated list of numbers."
-        )
-    res = calculate_avg(sample_array)
-    return {"message": "Calculated average of even numbers", "average": res}
+def calculate_average():
+    sample_array = []
+    return {"message": "Calculated average of even numbers", "average": calculate_avg(sample_array)}
 
 
 @app.get("/search/{x}")
