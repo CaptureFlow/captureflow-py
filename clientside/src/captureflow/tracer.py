@@ -144,7 +144,8 @@ class Tracer:
             trace_event["arguments"] = self._capture_arguments(frame)
             context["call_stack"].append(trace_event)
         elif event == "return":
-            trace_event["return_value"] = self._capture_arguments(frame)
+            trace_event["return_value"] = self._serialize_variable(arg)
+            # Also update "call" frame, because it's quick
             if context["call_stack"]:
                 context["call_stack"][-1]["return_value"] = self._serialize_variable(arg)
                 context["call_stack"].pop()
