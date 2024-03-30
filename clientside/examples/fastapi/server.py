@@ -9,8 +9,8 @@ from captureflow.tracer import Tracer
 os.environ["CAPTUREFLOW_DEV_SERVER"] = "true"
 
 tracer = Tracer(
-    repo_url="https://github.com/DummyUser/DummyRepo",
-    server_base_url="http://127.0.0.1:1337",
+    repo_url="https://github.com/CaptureFlow/captureflow-py",
+    server_base_url="http://127.0.0.1:8000",
 )
 
 app = FastAPI()
@@ -20,7 +20,7 @@ app = FastAPI()
 @tracer.trace_endpoint
 def calculate_average():
     # sample_array = [] # That would produce an exception
-    sample_array = [1, 2, 3, 4, 5]
+    sample_array = []
     return {"message": "Calculated average of even numbers", "average": calculate_avg(sample_array)}
 
 
