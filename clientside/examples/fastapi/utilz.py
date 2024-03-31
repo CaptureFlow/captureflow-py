@@ -1,5 +1,8 @@
 def calculate_avg(series):
-    return calculate_sum(series) / calculate_len(series)
+    if calculate_len(series) > 0:
+        return calculate_sum(series) / calculate_len(series)
+    else:
+        return 0
 
 
 def calculate_sum(series):
