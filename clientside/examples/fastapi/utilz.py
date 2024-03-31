@@ -1,4 +1,6 @@
 def calculate_avg(series):
+    if not series:
+        return 0
     return calculate_sum(series) / calculate_len(series)
 
 
