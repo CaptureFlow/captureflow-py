@@ -1,10 +1,20 @@
 # captureflow-py
 
-Leverage the deep context embedded in your deployed app to fuel LLMs, turning boring maintenance tasks into an AI-enhanced evolution:
+Leverage LLMs not only to craft new software components but also to evolve your existing repos. Software maintenance consumes a significant portion of dev time, yet deployed applications are already rich with embedded context.
 
-- **Context-Driven Code Enhancement**: Improve your code quality by leveraging the deep contextual insights provided by LLM agents observing traces from production.
-- **Trace-Based Auto-Debugging & Test Creation:** Transform traces into a foundation for generating tests and automating bug fix implementation.
-- **Execution Graph "Replays" as new way of validating suggestions:** Use traces to simulate specific parts of the execution graph, ensuring the validity of suggestions and mitigating the risk of hallucinations.
+By gathering and tracing data from production applications, we can unlock new approaches to automatic bug fixing and test generation. Real-time processing isn't our main concern; what we prioritize are reliable and meaningful improvements. 
+
+
+## Main components
+
+![Alt text](./assets/main-chart.svg)
+
+1. Backend HTTP server, enhanced with the captureflow-clientside library.
+2. The captureflow-backend system for trace storage and orchestration.
+3. AI connector.
+4. Version control connector.
+
+**Support is currently limited to Python, OpenAI, and GitHub.**
 
 ## Project timeline
 
@@ -50,3 +60,7 @@ You will need to deploy `fastapi` app together with `redis` instance.
 ```sh
 docker compose up --build
 ```
+
+## Documentation 
+
+TBD
