@@ -1,9 +1,9 @@
 # captureflow-py
 
-Leverage the deep context embedded in your deployed app to fuel LLMs, turning boring maintenance tasks into an AI-enhanced evolution, all while keeping a human in the loop.
+Leverage the deep context embedded in your deployed app to fuel LLMs, turning boring maintenance tasks into an AI-enhanced evolution:
 
 - **Context-Driven Code Enhancement**: Improve your code quality by leveraging the deep contextual insights provided by LLM agents observing traces from production.
-- **Trace-Based Test Creation & Auto-Debugging:** Transform traces into a robust foundation for generating tests and automating bug fix implementation.
+- **Trace-Based Auto-Debugging & Test Creation:** Transform traces into a foundation for generating tests and automating bug fix implementation.
 - **Execution Graph "Replays" as new way of validating suggestions:** Use traces to simulate specific parts of the execution graph, ensuring the validity of suggestions and mitigating the risk of hallucinations.
 
 ## Project timeline
@@ -14,12 +14,11 @@ Leverage the deep context embedded in your deployed app to fuel LLMs, turning bo
 | 1.1 | Tracer outputs JSONs that represent Python execution frames.                                              | ✅        |
 | 1.2 | Server stores incoming traces and able to enrich execution graph with GitHub metadata, such as function implementation. | ✅        |
 | 2   | First heuristic method for MR generation. Only focus on method as optimization unit.                      | ✅ |
-| 3   | First heuristic method for LLM-based MR validation.                                                       | ✅ |
-| 4   | Improve RAG pipeline for code-generation.                                                                 |       🔨     |
-| 4.1 | Send more relevant modules than just parent_function and child_functions; Implement ctags and more standardized methods of code parsing. | 🔨        |
-| 5   | Auto bug-fix based on 'exception' traces                                                      | 📝   |
-| 6   | Attempt to extend existing test suite. Focus on integratin test <-> trace data "synergy".                                                                          |      📝       |
-| 6.1 | Must be do-able to join execution graph during test execution with acquired traces. Build system can be probably re-created using CI/CD configs? What is easy?                               | 📝        |
+| 3   | Automated code fixes on exception: Utilize exception traces and execution context to propose targeted fixes for identified bugs.  | ✅ |
+| 3.1 | **More benchmarking for sophisticated scenarios**                                                                                       | 🔨   |
+| 4 | Utilize trace data to introduce a **new testing phase** for system code **mutations**, focusing on HTTP servers. Explore sandbox environments and **traffic replay** while simulating state changes by mocking relevant modules. | 🔨        |
+| 5   | Extend existing test cases using accumulated traces data (more realistic mock data, new scenarios)                                                                 |       📝     |
+| 6 | Improve RAG pipeline: fetch similar modules from code embeddings for reference; Implement ctags and more standardized methods of code parsing. | 📝        |
 
 
 ## Setup
