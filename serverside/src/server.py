@@ -1,10 +1,10 @@
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, Query
 from pydantic import BaseModel, Field, parse_obj_as, validator
 
+from src.utils.exception_patcher import ExceptionPatcher
 from src.utils.integrations.redis_integration import get_redis_connection
-from src.utils.orchestration import Orchestrator
 
 app = FastAPI()
 redis = get_redis_connection()
@@ -90,9 +90,9 @@ async def store_trace_log(trace_data: TraceData, repo_url: str = Query(..., alia
     return {"message": "Trace log saved successfully"}
 
 
-# Generate MR for a given repo
-@app.post("/api/v1/merge-requests")
-async def generate_mr(repo_url: str = Query(..., alias="repository-url")):
-    orchestrator = Orchestrator(redis_client=redis, repo_url=repo_url)
+# Process accumulated traces and create bugfix MR if needed
+@app.post("/api/v1/merge-requests/bugfix")
+async def generate_bugfix_mr(repo_url: str = Query(..., alias="repository-url")):
+    orchestrator = ExceptionPatcher(redis_client=redis, repo_url=repo_url)
     orchestrator.run()
     return {"message": "MR generation process started successfully"}

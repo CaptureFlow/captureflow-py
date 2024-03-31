@@ -13,24 +13,43 @@ class CallGraph:
         self._build_graph(log_data)
 
     def _build_graph(self, log_data: str) -> None:
-        """Builds the call graph from the provided log data."""
         data = json.loads(log_data) if isinstance(log_data, str) else log_data
+        # Track nodes that threw exceptions
+        exception_nodes = {}
 
         for event in data["execution_trace"]:
-            if event["event"] == "call":
-                node_attrs = {
-                    "function": event["function"],
-                    "file_line": f"{event['file']}:{event['line']}",
-                    "tag": event.get("tag", ["INTERNAL"]),
-                    "arguments": event.get("arguments", {}),
-                    "return_value": event.get("return_value", {}),
-                }
+            if event["event"] in ["call", "exception"]:
+                if event["event"] == "call":
+                    node_attrs = {
+                        "function": event["function"],
+                        "file_line": f"{event['file']}:{event['line']}",
+                        "tag": event.get("tag", "INTERNAL"),
+                        "arguments": event.get("arguments", {}),
+                        "return_value": event.get("return_value", {}),
+                        "exception": False,  # Initialize nodes with no exception
+                    }
+                elif event["event"] == "exception":
+                    # Update the caller node with exception info
+                    caller_node = self.graph.nodes[event["caller_id"]]
+                    caller_node["did_raise"] = True
+                    caller_node["unhandled_exception"] = {
+                        "type": event["exception_info"]["type"],
+                        "value": event["exception_info"]["value"],
+                        "traceback": event["exception_info"]["traceback"],
+                    }
+
+                    continue
+
                 self.graph.add_node(event["id"], **node_attrs)
 
                 # Add an edge from the caller to the current function call
                 caller_id = event.get("caller_id")
                 if caller_id and caller_id in self.graph:
                     self.graph.add_edge(caller_id, event["id"])
+
+                # If the caller had an exception, link this event as part of the exception chain
+                if caller_id in exception_nodes:
+                    self.graph.add_edge(exception_nodes[caller_id], event["id"])
 
     def iterate_graph(self) -> None:
         """Iterates through the graph, printing details of each node and its successors."""
@@ -65,26 +84,29 @@ class CallGraph:
         edges = list(self.graph.edges())
 
         for node, attrs in nodes:
-            func_name = attrs["function"]
             tag = attrs["tag"]
-            file_line = attrs["file_line"]
-            arguments = attrs["arguments"]
-            return_value = attrs["return_value"]
-            node_color = color_mapping.get(tag, "white")
+            node_color = color_mapping.get("EXCEPTION" if attrs["exception"] else tag, "white")
 
-            label = f"{func_name}\n{file_line}\n[{tag}]\nInput:{arguments}\nReturns:{return_value}"
-            dot.node(node, label=label, style="filled", fillcolor=node_color)
+            label_parts = [
+                f"Function: {attrs['function']}",
+                f"Tag: {tag}",
+                f"Arguments: {json.dumps(attrs.get('arguments', {}), indent=2)}",
+                f"Returns: {json.dumps(attrs.get('return_value', {}), indent=2)}",
+                f"Did Raise: {attrs.get('did_raise', {})}",
+                f"Traceback: {attrs.get('unhandled_exception', {})}",
+            ]
+
+            dot.node(node, label="\n".join(label_parts), style="filled", fillcolor=node_color)
 
         for u, v in edges:
             dot.edge(u, v)
 
-        dot.render("func_call_graph", view=True)
-
-        return dot
+        dot.render(output_filename, view=True)
 
 
 if __name__ == "__main__":
     log_file_path = "/Users/nikitakutc/projects/captureflow-py/serverside/tests/assets/sample_trace_with_exception.json"
+    # log_file_path = "/Users/nikitakutc/projects/captureflow-py/serverside/tests/assets/sample_trace.json"
     with open(log_file_path, "r") as file:
         log_data = file.read()
 

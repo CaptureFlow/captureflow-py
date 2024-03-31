@@ -54,9 +54,7 @@ class RepoHelper:
         for node_id in callgraph.graph.nodes:
             node = callgraph.graph.nodes[node_id]
             if "function" in node:
-                # Attempt to enrich the node with GitHub data
                 enriched_node = self.enrich_node_with_github_data(node)
-                # Update the node with enriched data if any
                 if enriched_node:
                     callgraph.graph.nodes[node_id].update(enriched_node)
 
@@ -182,5 +180,6 @@ class RepoHelper:
         pr_body = (
             "This pull request updates the implementation of `{function_name}` for better performance/readability."
         )
+
         pr = self.gh_repo.create_pull(title=pr_title, body=pr_body, head=new_branch_name, base="main")
         logger.info(f"Pull request created: {pr.html_url}")
