@@ -1,6 +1,6 @@
 # captureflow-py
 
-Leverage LLMs not only to craft new software components but also to evolve your existing repos. Software maintenance consumes a significant portion of dev time, yet deployed applications are already rich with embedded context.
+Leverage LLMs not only to craft new software components but also to maintain and improve your existing repos. Software maintenance consumes a significant portion of dev time, yet **deployed applications are already rich with embedded context**.
 
 By gathering and tracing data from production applications, we can unlock new approaches to automatic bug fixing and test generation. Real-time processing isn't our main concern; what we prioritize are reliable and meaningful improvements. 
 
@@ -16,7 +16,7 @@ By gathering and tracing data from production applications, we can unlock new ap
 
 **Support is currently limited to Python, OpenAI, and GitHub.**
 
-## Project timeline
+## Roadmap / Where are we
 
 | No. | Task                                                                                                      | State       |
 |-----|-----------------------------------------------------------------------------------------------------------|-------------|
@@ -53,6 +53,8 @@ def process_data(request):
     ...
 ```
 
+Please check [clientside/README](https://github.com/CaptureFlow/captureflow-py/blob/main/clientside/README.md). 
+
 #### Serverside
 
 You will need to deploy `fastapi` app together with `redis` instance.
@@ -61,6 +63,4 @@ You will need to deploy `fastapi` app together with `redis` instance.
 docker compose up --build
 ```
 
-## Documentation 
-
-TBD
+Please check [serverside/README](https://github.com/CaptureFlow/captureflow-py/blob/main/serverside/README.md).
