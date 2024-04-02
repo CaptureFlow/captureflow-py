@@ -26,24 +26,21 @@ def init_db():
 
 
 def calculate_score(user_id: str, company_id: str, amount: float) -> float:
-    # Intentional error trigger for a specific company_id
-    if company_id == "errorTrigger":
-        raise ValueError("Intentional Error Triggered")
-
+    if company_id == 'errorTrigger':
+        raise ValueError('Intentional Error Triggered')
     with sqlite3.connect(DATABASE_URL) as conn:
         cursor = conn.cursor()
         cursor.execute(
-            """
-            SELECT amount FROM transactions
-            WHERE company_id = ?
-            ORDER BY timestamp DESC
-            LIMIT 5
-        """,
-            (company_id,),
+            'SELECT amount FROM transactions WHERE company_id = ? ORDER BY timestamp DESC LIMIT 5',
+            (company_id,)
         )
         past_amounts = cursor.fetchall()
-        score = amount / sum([amt[0] for amt in past_amounts])
-        return score
+        past_amount_sum = sum([amt[0] for amt in past_amounts])
+        if past_amount_sum == 0:
+            score = 0
+        else:
+            score = amount / past_amount_sum
+    return score
 
 
 def add_transaction(user_id: str, company_id: str, amount: float, score: float):
