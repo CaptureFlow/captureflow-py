@@ -1,12 +1,8 @@
-import os
-
+import utilz
 from fastapi import FastAPI, HTTPException
-from utilz import calculate_avg
+from pydantic import BaseModel
 
 from captureflow.tracer import Tracer
-
-# This will make tracer dump logs locally
-os.environ["CAPTUREFLOW_DEV_SERVER"] = "true"
 
 tracer = Tracer(
     repo_url="https://github.com/CaptureFlow/captureflow-py",
@@ -16,35 +12,37 @@ tracer = Tracer(
 app = FastAPI()
 
 
-@app.get("/calculate_avg/")
+class Transaction(BaseModel):
+    user_id: str
+    company_id: str
+    amount: float
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize the database on startup."""
+    utilz.init_db()
+
+
+@app.post("/score_transaction/")
 @tracer.trace_endpoint
-def calculate_average():
-    # sample_array = [] # That would produce an exception
-    sample_array = []
-    return {"message": "Calculated average of even numbers", "average": calculate_avg(sample_array)}
+async def score_transaction(transaction: Transaction):
+    """
+    Scores a given transaction for fraud potential based on amount similarity to the last 5 transactions for the same company_id.
 
-
-@app.get("/search/{x}")
-@tracer.trace_endpoint
-def search(x: int):
-    # A logical mistake: attempting to search with an integer key in a dictionary with string keys
-    data_to_search = {"1": "one", "2": "two", "3": "three"}
-
-    # This will lead to a TypeError, as dictionaries expect their keys to be accessed with the correct type
-    result = data_to_search[x]
-    return {"found": True, "value": result}
-
-
-@app.get("/search_better/{x}")
-@tracer.trace_endpoint
-def search_handled(x: int):
-    # A logical mistake: attempting to search with an integer key in a dictionary with string keys
-    data_to_search = {"1": "one", "2": "two", "3": "three"}
-
-    # This will lead to a TypeError, as dictionaries expect their keys to be accessed with the correct type
+    ## cURL examples:
+    ```
+    curl -X 'POST' 'http://127.0.0.1:1337/score_transaction/' -H 'accept: application/json' -H 'Content-Type: application/json' -d '{"user_id": "user123", "company_id": "company456", "amount": 100.0}'
+    ```
+    """
+    score = utilz.calculate_score(transaction.user_id, transaction.company_id, transaction.amount)
     try:
-        result = data_to_search[x]
+        utilz.add_transaction(transaction.user_id, transaction.company_id, transaction.amount, score)
     except Exception as e:
-        return {"found": False}
-
-    return {"found": True, "value": result}
+        raise HTTPException(status_code=500, detail=str(e))
+    return {
+        "user_id": transaction.user_id,
+        "company_id": transaction.company_id,
+        "amount": transaction.amount,
+        "score": score,
+    }
