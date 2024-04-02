@@ -47,15 +47,28 @@ class ExceptionPatcher:
                 gpt_response = self.gpt_helper.call_chatgpt(prompt)
 
                 try:
-                    gpt_response_dict = json.loads(self.extract_json_simple(gpt_response))
-                    matched_node_ids = graph.find_node_by_fname(gpt_response_dict["function_name"])
-                    matches_node_id = matched_node_ids[0]
+                    json_str = self.extract_json_simple(gpt_response)
+                    if json_str:
+                        gpt_response_dict = json.loads(json_str)
+                        change_reasoning = gpt_response_dict.get("change_reasoning", "")
+                        function_name = gpt_response_dict.get("function_name", "")
+                        code_block = self.gpt_helper.extract_first_code_block(gpt_response)
 
-                    self.repo_helper.create_pull_request_with_new_function(
-                        graph.graph.nodes[matches_node_id], gpt_response_dict["new_function_code"], self.gpt_helper
-                    )
-                except json.JSONDecodeError:
-                    logger.exception(f"Failed to decode GPT response: {gpt_response}")
+                        matched_node_ids = graph.find_node_by_fname(function_name)
+                        if matched_node_ids:
+                            matches_node_id = matched_node_ids[0]
+
+                            self.repo_helper.create_pull_request_with_new_function(
+                                graph.graph.nodes[matches_node_id],
+                                context,
+                                code_block,
+                                change_reasoning,
+                                self.gpt_helper,
+                            )
+                    else:
+                        logger.error("Failed to extract JSON from GPT response.")
+                except (json.JSONDecodeError, KeyError) as e:
+                    logger.exception(f"Error processing GPT response: {e}")
 
     def extract_json_simple(self, text):
         try:
@@ -137,7 +150,11 @@ class ExceptionPatcher:
                     current_sequence.append(neighbor)
                     visited.add(neighbor)
 
-            exception_sequences.append(current_sequence)
+            # There are quite a lot if internal (invisible) exception chains happening inside libraries
+            # There is no point in refactoring them => prune and skip if needed
+            pruned_sequence = [node for node in current_sequence if graph.graph.nodes[node].get("tag") != "STDLIB"]
+            if len(pruned_sequence) >= 1:
+                exception_sequences.append(current_sequence)
 
         return exception_sequences
 
@@ -219,9 +236,9 @@ class ExceptionPatcher:
             "exception_info": node_data.get("unhandled_exception"),
             "return_value": node_data.get("return_value"),
             "function_implementation": (
-                node_data.get("github_function_implementation", {}).get("content", "Not available")
-                if include_code
-                else None
+                node_data.get("github_function_implementation").get("content", "Not available")
+                if isinstance(node_data.get("github_function_implementation"), dict) and include_code
+                else "Not available"
             ),
             "file_content": node_data.get("github_file_content", "Not available") if include_code else None,
         }
@@ -305,11 +322,21 @@ class ExceptionPatcher:
         """
 
         formatting_commands = """
-            Please output new production implementation of a single function that can be changed for fix. Please output single JSON with three fields and nothing else:
+            Please provide me two things: JSON of this form
             1. "confidence" that new code is going to resolve such exceptions (1 to 5)
             2. "function_name" that best to be updated to resolve exception.
-            3. "new_function_code" new implementation that is going to resolve exception
-            4. "change_reasoning" why do you think change is going to address exception
+            3. "change_reasoning" why do you think change is going to address exception.
+            and new proposed function code right escaped with ```python ...``` after it.
+            Here's example output:
+            {
+                "confidence": 5,
+                "function_name": "do_stuff",
+                "change_reasoning": "to fix above exception the most correct thing is ..."
+            }
+            ```python
+            def do_stuff():
+                pass # new implementation
+            ```
         """
 
         prompt = f"{exception_chain_details}\n{serialization_method_description}\n{formatting_commands}"

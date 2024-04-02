@@ -45,12 +45,20 @@ def mock_redis_client(sample_trace_json):
 def mock_openai_helper():
     with patch("src.utils.integrations.openai_integration.OpenAIHelper") as MockOpenAIHelper:
         mock_helper = MockOpenAIHelper()
-        # Here you should define the behavior of call_chatgpt, e.g. returning a fake response
-        mock_helper.call_chatgpt.return_value = """
-        ```json
-        {"confidence": 5, "function_name": "calculate_avg", "new_function_code": "def dummy_function(): pass\\n", "change_reasoning": "Just a mock response."}
-        ```
-        """
+        # Mocking expected ChatGPT response structure
+        dummy_function_code = "def dummy_function(): pass"
+        mock_response_json_str = json.dumps(
+            {
+                "confidence": 5,
+                "function_name": "calculate_avg",
+                "change_reasoning": "Just a mock response.",
+            }
+        )
+        mock_response_code_str = f"```python\n{dummy_function_code}```"
+        mock_response = f"{mock_response_json_str}\n{mock_response_code_str}"
+        mock_helper.call_chatgpt.return_value = mock_response
+        mock_helper.extract_first_code_block.return_value = dummy_function_code
+
         yield mock_helper
 
 
@@ -109,7 +117,6 @@ def test_bug_orchestrator_run(mock_redis_client, mock_openai_helper, mock_repo_h
         assert "Function: calculate_average" in actual_prompt
         assert "Function: calculate_avg" in actual_prompt
         assert "ZeroDivisionError - division by zero" in actual_prompt
-        assert "Please output new production implementation of a single function" in actual_prompt
         expected_function_implementation_snippets = ["def calculate_average(): pass", "def calculate_sum(): pass"]
         for snippet in expected_function_implementation_snippets:
             assert snippet in actual_prompt
@@ -125,6 +132,11 @@ def test_bug_orchestrator_run(mock_redis_client, mock_openai_helper, mock_repo_h
         assert node_arg.get("unhandled_exception").get("type") == "ZeroDivisionError"
         assert node_arg.get("unhandled_exception").get("value") == "division by zero"
 
-        new_function_code = called_args[1]
+        # There are two exception nodes in sample trace json
+        exception_context = called_args[1]
+        assert len(exception_context["exception_nodes"]) == 2
+
+        # New function code is exactly what mock ChatGPT returned
+        new_function_code = called_args[2]
         expected_new_function_code = "def dummy_function(): pass"
         assert new_function_code.strip() == expected_new_function_code.strip()
