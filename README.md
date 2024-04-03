@@ -60,3 +60,7 @@ docker compose up --build
 ```
 
 Please check [serverside/README](https://github.com/CaptureFlow/captureflow-py/blob/main/serverside/README.md).
+
+## Contributing
+
+No structure yet, feel free to join [discord](https://discord.gg/9VVqZBFt).
