@@ -139,10 +139,26 @@ class RepoHelper:
             }
         )
 
-    def create_pull_request_with_new_function(self, node, new_implementation: str, gpt_helper: OpenAIHelper):
+    def create_pull_request_with_new_function(
+        self,
+        node,
+        exception_context: Dict[str, Any],
+        new_implementation: str,
+        change_reasoning: str,
+        gpt_helper: OpenAIHelper,
+    ):
         """
         Update the implementation of a specific function based on node information,
-        commit the changes to a new branch, and create a pull request.
+        commit the changes to a new branch, and create a pull request with enhanced
+        context including the exception chain.
+
+        Args:
+            node: The graph node representing the function to be updated.
+            new_implementation: The new source code for the function.
+            gpt_helper: An instance of OpenAIHelper for any additional GPT-based processing.
+            exception_chain: A list of dictionaries, each representing a node in the
+                            exception chain. Each dictionary should contain at least
+                            'function_name', 'file_line', and 'exception_info'.
         """
         file_path = node["github_file_path"]
         function_name = node["function"]
@@ -177,9 +193,22 @@ class RepoHelper:
 
         # Create a pull request from the new branch to the main branch
         pr_title = f"Improve {function_name} implementation"
-        pr_body = (
-            "This pull request updates the implementation of `{function_name}` for better performance/readability."
-        )
+
+        # Format the exception context for inclusion in the PR body.
+        exception_context_md = "### Detailed Exception Context\n\n"
+        for exception_node in exception_context["exception_nodes"]:
+            node_details = exception_node["node_details"]
+            exception_info = node_details.get("exception_info", {})
+            exception_context_md += (
+                f"- **Function**: {node_details['function_name']} at `{node_details['file_line']}`\n"
+            )
+            exception_context_md += f"  - **Exception Type**: {exception_info.get('type')}\n"
+            exception_context_md += f"  - **Exception Value**: {exception_info.get('value')}\n"
+            exception_context_md += "\n"
+
+        change_reasoning_md = f"### Change Reasoning\n\n{change_reasoning}"
+
+        pr_body = f"""This pull request updates the implementation of `{node["function"]}` to address the identified issues. Below is the context and reasoning behind these changes.\n\n{exception_context_md}\n\n{change_reasoning_md}\n\n```"""
 
         pr = self.gh_repo.create_pull(title=pr_title, body=pr_body, head=new_branch_name, base="main")
         logger.info(f"Pull request created: {pr.html_url}")
