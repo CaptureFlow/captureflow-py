@@ -26,7 +26,6 @@ def init_db():
 
 
 def calculate_score(user_id: str, company_id: str, amount: float) -> float:
-    # Intentional error trigger for a specific company_id
     if company_id == "errorTrigger":
         raise ValueError("Intentional Error Triggered")
 
@@ -42,6 +41,9 @@ def calculate_score(user_id: str, company_id: str, amount: float) -> float:
             (company_id,),
         )
         past_amounts = cursor.fetchall()
+        if past_amounts == [] or sum([amt[0] for amt in past_amounts]) == 0:
+            return 0
+
         score = amount / sum([amt[0] for amt in past_amounts])
         return score
 
