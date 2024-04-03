@@ -42,7 +42,10 @@ def calculate_score(user_id: str, company_id: str, amount: float) -> float:
             (company_id,),
         )
         past_amounts = cursor.fetchall()
-        score = amount / sum([amt[0] for amt in past_amounts])
+        total_past_amounts = sum([amt[0] for amt in past_amounts])
+        if total_past_amounts == 0:
+            return 0.0
+        score = amount / total_past_amounts
         return score
 
 
