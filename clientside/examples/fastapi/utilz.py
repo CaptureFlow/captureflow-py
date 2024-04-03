@@ -2,7 +2,6 @@ import sqlite3
 
 DATABASE_URL = "db.sqlite3"
 
-
 def init_db():
     with sqlite3.connect(DATABASE_URL) as conn:
         cursor = conn.cursor()
@@ -42,7 +41,14 @@ def calculate_score(user_id: str, company_id: str, amount: float) -> float:
             (company_id,),
         )
         past_amounts = cursor.fetchall()
-        score = amount / sum([amt[0] for amt in past_amounts])
+        past_amounts_sum = sum([amt[0] for amt in past_amounts])
+        
+        #Check if the sum of past amounts is zero
+        if past_amounts_sum == 0:
+            return 0
+
+        # If sum of past amounts is not zero, proceed with the calculation
+        score = amount / past_amounts_sum
         return score
 
 
