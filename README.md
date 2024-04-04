@@ -6,14 +6,13 @@ By utilizing traces from production applications, we can unlock new approaches f
 
 **NOTE:** This is not yet ready for production use and it will degrade your application's performance. It presents an end-to-end pipeline that can be optimized by balancing tracing verbosity with the impact it can provide. For more details, check the [clientside/README](https://github.com/CaptureFlow/captureflow-py/blob/main/clientside/README.md).
 
-
 ## Main components
 
 ![Alt text](./assets/main-chart.svg)
 
 Integrate our tracing tool into your application to capture and send execution traces to the server. When traces contain unhandled exceptions, the server analyzes them and automatically generates MR accompanied by a change reasoning.
 
-**Support is currently limited to Python, OpenAI, and GitHub.**
+**Support is currently limited to Python, OpenAI API, and GitHub.**
 
 ## Roadmap / Current Status
 
@@ -23,6 +22,7 @@ Integrate our tracing tool into your application to capture and send execution t
 - [ ] **Benchmarking & Testing**:
     - [x] More sophisticated benchmarking scenarios are under development.
 - [ ] **Test Case Extension**: Extend existing test cases using accumulated trace data for more realistic mock data and scenarios.
+- [ ] **Add support for open LLMs**.
 - [ ] **RAG Pipeline Improvement**: Enhance the Retrieve and Generate (RAG) pipeline with similar module fetching from code embeddings, ctags implementation, and standardized code parsing methods.
 
 
