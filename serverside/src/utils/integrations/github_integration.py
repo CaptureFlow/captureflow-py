@@ -236,21 +236,11 @@ class RepoHelper:
 
         # Create the test file on the new branch
         commit_message = f"Add new test for {test_file_name}"
-        self.gh_repo.create_file(
-            test_file_path,
-            commit_message,
-            test_code,
-            branch=new_branch_name
-        )
+        self.gh_repo.create_file(test_file_path, commit_message, test_code, branch=new_branch_name)
 
         # Create a pull request from the new branch to the main branch
         pr_title = f"Add new test for {test_file_name}"
         pr_body = "This pull request adds a new test file to improve the test coverage of the repository."
 
-        pr = self.gh_repo.create_pull(
-            title=pr_title,
-            body=pr_body,
-            head=new_branch_name,
-            base="main"
-        )
+        pr = self.gh_repo.create_pull(title=pr_title, body=pr_body, head=new_branch_name, base="main")
         logger.info(f"Pull request created: {pr.html_url}")

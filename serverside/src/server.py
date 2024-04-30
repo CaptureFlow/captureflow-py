@@ -3,9 +3,9 @@ from typing import Any, Dict, List, Optional
 from fastapi import FastAPI, Query
 from pydantic import BaseModel, Field, parse_obj_as, validator
 
-from src.utils.test_creator import TestCoverageCreator
 from src.utils.exception_patcher import ExceptionPatcher
 from src.utils.integrations.redis_integration import get_redis_connection
+from src.utils.test_creator import TestCoverageCreator
 
 app = FastAPI()
 redis = get_redis_connection()

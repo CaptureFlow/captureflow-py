@@ -6,15 +6,16 @@ from unittest.mock import Mock, patch
 import pytest
 
 from src.utils.call_graph import CallGraph
-from src.utils.test_creator import TestCoverageCreator
-from src.utils.integrations.openai_integration import OpenAIHelper
 from src.utils.integrations.github_integration import RepoHelper
+from src.utils.integrations.openai_integration import OpenAIHelper
+from src.utils.test_creator import TestCoverageCreator
+
 
 @pytest.fixture(autouse=True)
 def disable_network_access():
     def guard(*args, **kwargs):
         raise Exception("Network access not allowed during tests!")
-    
+
     orig_socket = socket.socket
     orig_create_connection = socket.create_connection
     socket.socket = guard
@@ -25,11 +26,13 @@ def disable_network_access():
     socket.socket = orig_socket
     socket.create_connection = orig_create_connection
 
+
 @pytest.fixture
 def sample_trace_json():
     trace_path = Path(__file__).parent.parent / "assets" / "sample_trace.json"
     with open(trace_path) as f:
         return json.load(f)
+
 
 @pytest.fixture
 def mock_redis_client(sample_trace_json):
@@ -39,6 +42,7 @@ def mock_redis_client(sample_trace_json):
         mock_redis_client.get.side_effect = lambda k: json.dumps(sample_trace_json).encode("utf-8")
         yield mock_redis_client
 
+
 @pytest.fixture
 def mock_openai_helper():
     with patch("src.utils.integrations.openai_integration.OpenAIHelper") as MockOpenAIHelper:
@@ -46,6 +50,7 @@ def mock_openai_helper():
         mock_helper.call_chatgpt.return_value = "```python\ndef test_calculate_average(): assert True```"
         mock_helper.extract_pytest_code.return_value = "def test_calculate_average(): assert True"
         yield mock_helper
+
 
 @pytest.fixture
 def github_data_mapping():
@@ -60,6 +65,7 @@ def github_data_mapping():
             "github_file_content": "def calculate_average(values): return sum(values) / len(values)",
         }
     }
+
 
 @pytest.fixture
 def mock_repo_helper(github_data_mapping):
@@ -77,6 +83,7 @@ def mock_repo_helper(github_data_mapping):
 
     return mock_instance
 
+
 def test_test_coverage_creator_run(mock_redis_client, mock_openai_helper, mock_repo_helper):
     with patch("src.utils.test_creator.RepoHelper", return_value=mock_repo_helper), patch(
         "src.utils.test_creator.OpenAIHelper", return_value=mock_openai_helper
@@ -89,7 +96,9 @@ def test_test_coverage_creator_run(mock_redis_client, mock_openai_helper, mock_r
 
         assert "Write a complete pytest file for testing the function 'calculate_average'" in actual_prompt
         assert "calculate_average" in actual_prompt
-        assert "return sum(values) / len(values)" in actual_prompt  # Confirming the function content is included in the prompt
+        assert (
+            "return sum(values) / len(values)" in actual_prompt
+        )  # Confirming the function content is included in the prompt
 
         # Validate the call to extract_pytest_code
         pytest_code = mock_openai_helper.extract_pytest_code(mock_openai_helper.call_chatgpt.return_value)
