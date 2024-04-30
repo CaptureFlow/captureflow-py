@@ -28,6 +28,10 @@ class DefinitionVisitor(ast.NodeVisitor):
         self.definitions.append(("function", node))
         self.generic_visit(node)
 
+    def visit_AsyncFunctionDef(self, node):
+        self.definitions.append(("function", node))
+        self.generic_visit(node)
+
 
 class RepoHelper:
     def __init__(self, repo_url: str):
@@ -211,4 +215,42 @@ class RepoHelper:
         pr_body = f"""This pull request updates the implementation of `{node["function"]}` to address the identified issues. Below is the context and reasoning behind these changes.\n\n{exception_context_md}\n\n{change_reasoning_md}\n\n```"""
 
         pr = self.gh_repo.create_pull(title=pr_title, body=pr_body, head=new_branch_name, base="main")
+        logger.info(f"Pull request created: {pr.html_url}")
+
+    def create_pull_request_with_test(self, test_file_name: str, test_code: str, branch_name_suffix: str):
+        """
+        Creates a new pull request with a new test file in the 'captureflow_tests/' directory.
+
+        Args:
+            test_file_name (str): The name of the test file to create.
+            test_code (str): The source code of the test.
+            branch_name_suffix (str): A suffix for the branch name to ensure it is unique.
+        """
+        # Define the path where the test file will be stored
+        test_file_path = f"captureflow_tests/{test_file_name}"
+
+        # Create a new branch for this update
+        new_branch_name = f"add-test-{branch_name_suffix}-{uuid.uuid4().hex}"
+        base_sha = self.gh_repo.get_branch("main").commit.sha
+        self.gh_repo.create_git_ref(ref=f"refs/heads/{new_branch_name}", sha=base_sha)
+
+        # Create the test file on the new branch
+        commit_message = f"Add new test for {test_file_name}"
+        self.gh_repo.create_file(
+            test_file_path,
+            commit_message,
+            test_code,
+            branch=new_branch_name
+        )
+
+        # Create a pull request from the new branch to the main branch
+        pr_title = f"Add new test for {test_file_name}"
+        pr_body = "This pull request adds a new test file to improve the test coverage of the repository."
+
+        pr = self.gh_repo.create_pull(
+            title=pr_title,
+            body=pr_body,
+            head=new_branch_name,
+            base="main"
+        )
         logger.info(f"Pull request created: {pr.html_url}")
