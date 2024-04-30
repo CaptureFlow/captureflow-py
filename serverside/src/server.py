@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, parse_obj_as, validator
 
 from src.utils.exception_patcher import ExceptionPatcher
 from src.utils.integrations.redis_integration import get_redis_connection
+from src.utils.test_creator import TestCoverageCreator
 
 app = FastAPI()
 redis = get_redis_connection()
@@ -96,3 +97,14 @@ async def generate_bugfix_mr(repo_url: str = Query(..., alias="repository-url"))
     orchestrator = ExceptionPatcher(redis_client=redis, repo_url=repo_url)
     orchestrator.run()
     return {"message": "MR generation process started successfully"}
+
+
+@app.post("/api/v1/test-coverage/create")
+async def generate_test_coverage(repo_url: str = Query(..., alias="repository-url")):
+    """
+    Endpoint to trigger test coverage creation using the TestCoverageCreator.
+    The process will look at non-standard library functions in the trace and attempt to generate tests.
+    """
+    test_creator = TestCoverageCreator(redis_client=redis, repo_url=repo_url)
+    test_creator.run()
+    return {"message": "Test coverage creation process initiated successfully"}
