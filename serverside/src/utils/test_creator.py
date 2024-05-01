@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from typing import Any, Dict, List, Optional
 
 from redis import Redis
@@ -27,10 +28,14 @@ class TestCoverageCreator:
             if entry_point_node_id is None:
                 logger.info("No entry point function was selected for coverage.")
                 continue
-            
-            all_interactions = [] # Stores GPT-friendly info regarding what interactions are likely external (DBs/APIs)
-            function_context = [] # Stores GPT-friendly info regarding what CallGraph nodes are doing (implementation, filename, etc)
-            self.analyze_graph_for_interactions_and_context(graph, entry_point_node_id, all_interactions, function_context)
+
+            all_interactions = []  # Stores GPT-friendly info regarding what interactions are likely external (DBs/APIs)
+            function_context = (
+                []
+            )  # Stores GPT-friendly info regarding what CallGraph nodes are doing (implementation, filename, etc)
+            self.analyze_graph_for_interactions_and_context(
+                graph, entry_point_node_id, all_interactions, function_context
+            )
 
             test_prompt = self.generate_test_prompt(function_context, all_interactions, graph, entry_point_node_id)
             gpt_response = self.gpt_helper.call_chatgpt(test_prompt)
@@ -71,20 +76,25 @@ class TestCoverageCreator:
             "interactions": [
                 {
                     "type": "DB_INTERACTION | API_CALL",
-                    "details": "Query to SQLite database for user data",
+                    "details": "Query to SQLite database for user data at line 14",
                     "mock_idea": 'with patch("sqlite3.connect") as mock_connect: mock_cursor = mock_connect.return_value.cursor.return_value; mock_cursor.fetchall.return_value = [(10,), (20,)]',
+                    "certainty": "high",
                 }
             ]
         }
         prompt = (
-            f"Analyze the following Python code and identify any external interactions such as database queries, "
-            f"API calls, or file operations. For each interaction, return a JSON formatted list with the type of interaction, "
-            f"details, and suggestions for how to mock these interactions in a pytest environment. Use the following format for your response:\n"
-            f"{json.dumps(json_example)}"
-            f"If there are no interactions, then interactions array must be empty.\n"
-            f"Also make sure to name exact line/function where external interaction that will likely need to get mocked happens, add it to 'details'\n\n"
+            f"Please analyze the provided Python code snippet to identify any external interactions such as database queries, "
+            f"API calls, or file operations. For each detected interaction, return a JSON formatted list describing the interaction. "
+            f"Each interaction should include the type, detailed description, and suggested mocking strategy if applicable. "
+            f"Please classify the certainty of each interaction as 'high', 'medium', or 'low'. Based on the certainty, "
+            f"provide appropriate mock ideas or indicate if mocking is not certain. Use the following response format:\n"
+            f"{json.dumps(json_example, indent=2)}\n"
+            f"If no external interactions are detected, please return an empty interactions array.\n"
+            f"Additionally, indicate the specific functions where these interactions occur.\n\n"
             f"```python\n{function_implementation}\n```"
         )
+
+        # Call ChatGPT and get the response
         response = self.gpt_helper.call_chatgpt(prompt)
         interactions = self.parse_interaction_response(response)
         return interactions
@@ -100,36 +110,51 @@ class TestCoverageCreator:
             logger.error(f"Failed to decode interaction response from ChatGPT: {e}")
             return []
 
-    def analyze_graph_for_interactions_and_context(self, graph: CallGraph, node_id: str, interactions: List[Dict[str, Any]], function_context: List[str]):
+    def analyze_graph_for_interactions_and_context(
+        self, graph: CallGraph, node_id: str, interactions: List[Dict[str, Any]], function_context: List[str]
+    ):
         node_data = graph.graph.nodes[node_id]
-        if node_data["tag"] == "STDLIB" or "github_function_implementation" not in node_data or node_data["github_function_implementation"] == "not_found":
+        if (
+            node_data["tag"] == "STDLIB"
+            or "github_function_implementation" not in node_data
+            or node_data["github_function_implementation"] == "not_found"
+        ):
             return
 
         node_interactions = self.analyze_external_interactions_with_chatgpt(node_data)
         interactions.extend(node_interactions)
 
-        function_context.append(f"Function '{node_data['function']}' defined in '{node_data.get('github_file_path', 'unknown')}' at line {node_data.get('github_function_implementation', {}).get('start_line', 'unknown')} should consider the following details for mocking: {json.dumps(node_interactions)}")
+        function_context.append(
+            f"Function '{node_data['function']}' defined in '{node_data.get('github_file_path', 'unknown')}' at line {node_data.get('github_function_implementation', {}).get('start_line', 'unknown')} with this implementation {node_data.get('github_function_implementation', {}).get('content', 'Not available')} should consider the following details for mocking (if needed at all): {json.dumps(node_interactions)}"
+        )
 
         for successor in graph.graph.successors(node_id):
             self.analyze_graph_for_interactions_and_context(graph, successor, interactions, function_context)
-    
+
     def generate_test_prompt(self, function_context, all_interactions, graph, entry_point_node_id):
         entry_point_data = graph.graph.nodes[entry_point_node_id]
 
-        # Generate mock instructions, ensuring to handle missing or empty 'mock_idea'
-        mock_instructions = "\n".join(
-            interaction.get('mock_idea', 'No specific mock instructions provided.')
-            for interaction in all_interactions
-            if 'mock_idea' in interaction and interaction['mock_idea'].strip()
-        )
+        # Load the pytest template from the resources directory
+        template_path = os.path.join(os.path.dirname(__file__), "resources", "pytest_template.py")
+        with open(template_path, "r") as file:
+            pytest_template = file.read()
 
-        # TODO, provide some guidance on how to import WSGI.app (route to server:app)
+        # Generate mock instructions only for high-certainty interactions
+        mock_instructions = "\n".join(
+            interaction["mock_idea"]
+            for interaction in all_interactions
+            if interaction.get("certainty", "low") == "high" and "mock_idea" in interaction
+        )
 
         function_name = entry_point_data["function"]
         file_path = entry_point_data.get("github_file_path", "unknown")
         line_number = entry_point_data.get("github_function_implementation", {}).get("start_line", "unknown")
-        function_implementation = entry_point_data.get("github_function_implementation", {}).get("content", "Not available")
-        full_function_content = entry_point_data.get("github_file_content", "Function content not available")  # Retrieve full function content
+        function_implementation = entry_point_data.get("github_function_implementation", {}).get(
+            "content", "Not available"
+        )
+        full_function_content = entry_point_data.get(
+            "github_file_content", "Function content not available"
+        )  # Retrieve full function content
         arguments = json.dumps(entry_point_data.get("arguments", {}), indent=2)
         expected_output = entry_point_data["return_value"].get("json_serialized", "No output captured")
         context_details = "\n".join(function_context)
@@ -144,6 +169,7 @@ class TestCoverageCreator:
             f"{context_details}\n"
             "External interactions to mock (follow the instructions below):\n"
             f"{mock_instructions}\n"
+            f"\n# --- Start of the Pytest Template ---\n{pytest_template}\n# --- End of the Pytest Template ---\n"
             "Include necessary imports, setup any needed fixtures, and define test functions with assertions based on the expected output. "
             "Ensure the test file adheres to Python best practices and pytest conventions."
         )
