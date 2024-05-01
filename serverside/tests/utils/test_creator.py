@@ -47,7 +47,16 @@ def mock_redis_client(sample_trace_json):
 def mock_openai_helper():
     with patch("src.utils.integrations.openai_integration.OpenAIHelper") as MockOpenAIHelper:
         mock_helper = MockOpenAIHelper()
-        mock_helper.call_chatgpt.return_value = "```python\ndef test_calculate_average(): assert True```"
+        mock_helper.call_chatgpt.side_effect = [
+            json.dumps(
+                {
+                    "interactions": [
+                        {"type": "DB_INTERACTION", "details": "Mock DB query", "mock_code": "mock_db_query()"}
+                    ]
+                }
+            ),  # Second call for INTERNAL function
+            "```python\ndef test_calculate_average(): assert True```",  # Second call for generating full pytest code
+        ]
         mock_helper.extract_pytest_code.return_value = "def test_calculate_average(): assert True"
         yield mock_helper
 
@@ -91,14 +100,11 @@ def test_test_coverage_creator_run(mock_redis_client, mock_openai_helper, mock_r
         test_creator = TestCoverageCreator(redis_client=mock_redis_client, repo_url="http://sample.repo.url")
         test_creator.run()
 
-        # Call arguments for mock_openai_helper.call_chatgpt
-        actual_prompt = mock_openai_helper.call_chatgpt.call_args[0][0]
+        external_interactions_call = mock_openai_helper.call_chatgpt.call_args_list[0][0][0]
+        pytest_generation_call = mock_openai_helper.call_chatgpt.call_args_list[1][0][0]
 
-        assert "Write a complete pytest file for testing the function 'calculate_average'" in actual_prompt
-        assert "calculate_average" in actual_prompt
-        assert (
-            "return sum(values) / len(values)" in actual_prompt
-        )  # Confirming the function content is included in the prompt
+        assert "Analyze the following Python code" in external_interactions_call
+        assert "Write a complete pytest file" in pytest_generation_call
 
         # Validate the call to extract_pytest_code
         pytest_code = mock_openai_helper.extract_pytest_code(mock_openai_helper.call_chatgpt.return_value)
@@ -106,5 +112,5 @@ def test_test_coverage_creator_run(mock_redis_client, mock_openai_helper, mock_r
         assert pytest_code.strip() == expected_pytest_code.strip()
 
         # Check that the enriched GitHub data was used in the prompt
-        enriched_data_used = "def calculate_average(values): return sum(values) / len(values)" in actual_prompt
+        enriched_data_used = "def calculate_average(values): return sum(values) / len(values)" in pytest_generation_call
         assert enriched_data_used
