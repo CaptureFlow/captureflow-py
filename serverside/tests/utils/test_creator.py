@@ -62,7 +62,7 @@ def github_data_mapping():
                 "end_line": 5,
                 "content": "def calculate_average(values): return sum(values) / len(values)",
             },
-            "github_file_content": "def calculate_average(values): return sum(values) / len(values)",
+            "github_file_content": "import numpy\n def calculate_average(values): return sum(values) / len(values)",
         }
     }
 

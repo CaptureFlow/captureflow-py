@@ -66,13 +66,18 @@ class TestCoverageCreator:
     def generate_test_prompt(self, node_data: Dict[str, Any]) -> str:
         function_name = node_data["function"]
         file_path = node_data.get("github_file_path", "unknown")
+        line_number = node_data.get("github_function_implementation", {}).get("start_line", "unknown")
         function_implementation = node_data.get("github_function_implementation", {}).get("content", "Not available")
+        arguments = json.dumps(node_data.get("arguments", {}), indent=2)
+        expected_output = node_data["return_value"].get("json_serialized", "No output captured")
 
         prompt = (
-            f"Write a complete pytest file for testing the function '{function_name}' defined at {file_path}. "
+            f"Write a complete pytest file for testing the function '{function_name}' defined in '{file_path}' at line {line_number}. "
             f"Here's the function implementation:\n{function_implementation}\n"
-            "Include necessary imports, setup any needed fixtures, and define at least one test function with assertions."
-            "Ensure the test file adheres to Python best practices and pytest conventions."
+            f"The function takes the following arguments: {arguments}.\n"
+            f"Expected output: {expected_output}\n"
+            "Include necessary imports, setup any needed fixtures, and define at least one test function with assertions "
+            "based on the expected output. Ensure the test file adheres to Python best practices and pytest conventions."
         )
         return prompt
 
