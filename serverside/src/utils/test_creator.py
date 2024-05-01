@@ -28,10 +28,18 @@ class TestCoverageCreator:
                 logger.info("No entry point function was selected for coverage.")
                 continue
 
-            # Generate test prompt by analyzing the CallGraph from the entry point node
-            test_prompt = self.generate_test_prompt(graph, entry_point_node_id)
+            all_interactions = []
+            function_context = []
+            self.analyze_graph_for_interactions_and_context(graph, entry_point_node_id, all_interactions, function_context)
+
+            test_prompt = self.generate_test_prompt(function_context, all_interactions, graph, entry_point_node_id)
+
+            print("TEST PROMPT = ", test_prompt)
+
             gpt_response = self.gpt_helper.call_chatgpt(test_prompt)
-            pytest_full_code = self.extract_full_pytest_code(gpt_response)
+            pytest_full_code = self.gpt_helper.extract_first_code_block(gpt_response)
+
+            print("Pytest code = ", pytest_full_code)
 
             if pytest_full_code:
                 logger.info(
@@ -78,10 +86,12 @@ class TestCoverageCreator:
             f"API calls, or file operations. For each interaction, return a JSON formatted list with the type of interaction, "
             f"details, and suggestions for how to mock these interactions in a pytest environment. Use the following format for your response:\n"
             f"{json.dumps(json_example)}"
-            f"If there are no interactions => interactions array must be empty\n\n"
+            f"If there are no interactions, then interactions array must be empty.\n"
+            f"Also make sure to name exact line/function where external interaction that will likely need to get mocked happens, add it to 'details'\n\n"
             f"```python\n{function_implementation}\n```"
         )
         response = self.gpt_helper.call_chatgpt(prompt)
+        print("RESPONSE = ", response)
         interactions = self.parse_interaction_response(response)
         return interactions
 
@@ -96,53 +106,49 @@ class TestCoverageCreator:
             logger.error(f"Failed to decode interaction response from ChatGPT: {e}")
             return []
 
-    def analyze_graph_for_interactions(self, graph: CallGraph, node_id: str, interactions: List[Dict[str, Any]]):
+    def analyze_graph_for_interactions_and_context(self, graph: CallGraph, node_id: str, interactions: List[Dict[str, Any]], function_context: List[str]):
         node_data = graph.graph.nodes[node_id]
-
-        # We are not interested in scanning Python/Library methods
-        # If such method does contain external call, we need to identify it on the caller level
-        if (
-            node_data["tag"] == "STDLIB"
-            or ("github_function_implementation" not in node_data)
-            or node_data["github_function_implementation"] == "not_found"
-        ):
-            return []
+        print("NODE DATA START = ", node_data)
+        if node_data["tag"] == "STDLIB" or "github_function_implementation" not in node_data or node_data["github_function_implementation"] == "not_found":
+            return
 
         node_interactions = self.analyze_external_interactions_with_chatgpt(node_data)
         interactions.extend(node_interactions)
 
-        # Recursively analyze all child nodes
-        for successor in graph.graph.successors(node_id):
-            self.analyze_graph_for_interactions(graph, successor, interactions)
+        function_context.append(f"Function '{node_data['function']}' defined in '{node_data.get('github_file_path', 'unknown')}' at line {node_data.get('github_function_implementation', {}).get('start_line', 'unknown')} should consider the following details for mocking: {json.dumps(node_interactions)}")
 
-    def generate_test_prompt(self, graph: CallGraph, entry_point_node_id: str) -> str:
+        for successor in graph.graph.successors(node_id):
+            self.analyze_graph_for_interactions_and_context(graph, successor, interactions, function_context)
+    
+    def generate_test_prompt(self, function_context, all_interactions, graph, entry_point_node_id):
         entry_point_data = graph.graph.nodes[entry_point_node_id]
-        all_interactions = []
-        self.analyze_graph_for_interactions(graph, entry_point_node_id, all_interactions)
+
+        # Generate mock instructions, ensuring to handle missing or empty 'mock_idea'
+        mock_instructions = "\n".join(
+            interaction.get('mock_idea', 'No specific mock instructions provided.')
+            for interaction in all_interactions
+            if 'mock_idea' in interaction and interaction['mock_idea'].strip()
+        )
 
         # TODO, replace 'mock_code' (broken) instruction, line by line
-        # TODO, also send context of all functions that were called by a given function including path
         # TODO, provide some guidance on how to import WSGI.app (route to server:app)
         # TODO, instead of just sending endpoint, send full function where it's defined
-
-        mock_instructions = "\n".join(
-            [f"{interaction['mock_code']}" for interaction in all_interactions if "mock_code" in interaction]
-        )
 
         function_name = entry_point_data["function"]
         file_path = entry_point_data.get("github_file_path", "unknown")
         line_number = entry_point_data.get("github_function_implementation", {}).get("start_line", "unknown")
-        function_implementation = entry_point_data.get("github_function_implementation", {}).get(
-            "content", "Not available"
-        )
+        function_implementation = entry_point_data.get("github_function_implementation", {}).get("content", "Not available")
         arguments = json.dumps(entry_point_data.get("arguments", {}), indent=2)
         expected_output = entry_point_data["return_value"].get("json_serialized", "No output captured")
+        context_details = "\n".join(function_context)
 
         prompt = (
             f"Write a complete pytest file for testing the WSGI app entry point '{function_name}' defined in '{file_path}' at line {line_number}. "
             f"Function implementation:\n{function_implementation}\n"
             f"Arguments: {arguments}\n"
             f"Expected output: {expected_output}\n"
+            "Context and external interactions:\n"
+            f"{context_details}\n"
             "External interactions to mock (follow the instructions below):\n"
             f"{mock_instructions}\n"
             "Include necessary imports, setup any needed fixtures, and define test functions with assertions based on the expected output. "
@@ -150,16 +156,6 @@ class TestCoverageCreator:
         )
 
         return prompt
-
-    def extract_full_pytest_code(self, text: str) -> Optional[str]:
-        """Extracts a full pytest file from the provided response."""
-        try:
-            start_index = text.index("import pytest")
-            end_index = text.rfind("```") if "```" in text else len(text)
-            full_pytest_code = text[start_index:end_index].strip()
-            return full_pytest_code
-        except ValueError:
-            return None
 
 
 if __name__ == "__main__":
