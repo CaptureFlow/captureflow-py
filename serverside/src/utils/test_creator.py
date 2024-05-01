@@ -27,19 +27,14 @@ class TestCoverageCreator:
             if entry_point_node_id is None:
                 logger.info("No entry point function was selected for coverage.")
                 continue
-
-            all_interactions = []
-            function_context = []
+            
+            all_interactions = [] # Stores GPT-friendly info regarding what interactions are likely external (DBs/APIs)
+            function_context = [] # Stores GPT-friendly info regarding what CallGraph nodes are doing (implementation, filename, etc)
             self.analyze_graph_for_interactions_and_context(graph, entry_point_node_id, all_interactions, function_context)
 
             test_prompt = self.generate_test_prompt(function_context, all_interactions, graph, entry_point_node_id)
-
-            print("TEST PROMPT = ", test_prompt)
-
             gpt_response = self.gpt_helper.call_chatgpt(test_prompt)
             pytest_full_code = self.gpt_helper.extract_first_code_block(gpt_response)
-
-            print("Pytest code = ", pytest_full_code)
 
             if pytest_full_code:
                 logger.info(
@@ -91,7 +86,6 @@ class TestCoverageCreator:
             f"```python\n{function_implementation}\n```"
         )
         response = self.gpt_helper.call_chatgpt(prompt)
-        print("RESPONSE = ", response)
         interactions = self.parse_interaction_response(response)
         return interactions
 
@@ -108,7 +102,6 @@ class TestCoverageCreator:
 
     def analyze_graph_for_interactions_and_context(self, graph: CallGraph, node_id: str, interactions: List[Dict[str, Any]], function_context: List[str]):
         node_data = graph.graph.nodes[node_id]
-        print("NODE DATA START = ", node_data)
         if node_data["tag"] == "STDLIB" or "github_function_implementation" not in node_data or node_data["github_function_implementation"] == "not_found":
             return
 
@@ -130,21 +123,21 @@ class TestCoverageCreator:
             if 'mock_idea' in interaction and interaction['mock_idea'].strip()
         )
 
-        # TODO, replace 'mock_code' (broken) instruction, line by line
         # TODO, provide some guidance on how to import WSGI.app (route to server:app)
-        # TODO, instead of just sending endpoint, send full function where it's defined
 
         function_name = entry_point_data["function"]
         file_path = entry_point_data.get("github_file_path", "unknown")
         line_number = entry_point_data.get("github_function_implementation", {}).get("start_line", "unknown")
         function_implementation = entry_point_data.get("github_function_implementation", {}).get("content", "Not available")
+        full_function_content = entry_point_data.get("github_file_content", "Function content not available")  # Retrieve full function content
         arguments = json.dumps(entry_point_data.get("arguments", {}), indent=2)
         expected_output = entry_point_data["return_value"].get("json_serialized", "No output captured")
         context_details = "\n".join(function_context)
 
         prompt = (
             f"Write a complete pytest file for testing the WSGI app entry point '{function_name}' defined in '{file_path}' at line {line_number}. "
-            f"Function implementation:\n{function_implementation}\n"
+            f"Full function implementation from the source file:\n{full_function_content}\n"
+            f"Function implementation snippet:\n{function_implementation}\n"
             f"Arguments: {arguments}\n"
             f"Expected output: {expected_output}\n"
             "Context and external interactions:\n"
