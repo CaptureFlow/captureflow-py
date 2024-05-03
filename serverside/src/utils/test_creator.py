@@ -24,6 +24,14 @@ class TestCoverageCreator:
         graphs = self.build_graphs_from_redis()
         for graph in graphs:
             self.repo_helper.enrich_callgraph_with_github_context(graph)
+            app_path = self.repo_helper.get_fastapi_app_path()
+            desired_test_path = "tests/test_app.py"  # TODO: is there a better heuristic? / take desired path from user
+            
+            # Assuming, we are focused on FastAPI/ASGI app tests for now
+            if not app_path:
+                logger.error("FastAPI application path could not be found.")
+                continue
+
             entry_point_node_id = self.select_function_to_cover(graph)
             if entry_point_node_id is None:
                 logger.info("No entry point function was selected for coverage.")
@@ -146,6 +154,10 @@ class TestCoverageCreator:
             if interaction.get("certainty", "low") == "high" and "mock_idea" in interaction
         )
 
+        # TODO, implement a way to find where fastAPI app is located
+        # TODO, assume you have an input (desired_test_location)
+        # TODO, construct path to import fastAPI app from desired_test_location
+
         function_name = entry_point_data["function"]
         file_path = entry_point_data.get("github_file_path", "unknown")
         line_number = entry_point_data.get("github_function_implementation", {}).get("start_line", "unknown")
@@ -154,7 +166,7 @@ class TestCoverageCreator:
         )
         full_function_content = entry_point_data.get(
             "github_file_content", "Function content not available"
-        )  # Retrieve full function content
+        )
         arguments = json.dumps(entry_point_data.get("arguments", {}), indent=2)
         expected_output = entry_point_data["return_value"].get("json_serialized", "No output captured")
         context_details = "\n".join(function_context)

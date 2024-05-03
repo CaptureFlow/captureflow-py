@@ -19,6 +19,7 @@ class DefinitionVisitor(ast.NodeVisitor):
 
     def __init__(self):
         self.definitions = []
+        self.fastapi_app_definitions = []
 
     def visit_ClassDef(self, node):
         self.definitions.append(("class", node))
@@ -30,6 +31,11 @@ class DefinitionVisitor(ast.NodeVisitor):
 
     def visit_AsyncFunctionDef(self, node):
         self.definitions.append(("function", node))
+        self.generic_visit(node)
+
+    def visit_Call(self, node):
+        if isinstance(node.func, ast.Name) and node.func.id == 'FastAPI':
+            self.fastapi_app_definitions.append(node)
         self.generic_visit(node)
 
 
@@ -79,6 +85,7 @@ class RepoHelper:
             tree = ast.parse(file_data, filename=file_content.path)
             visitor = DefinitionVisitor()
             visitor.visit(tree)
+
             for symbol_type, node in visitor.definitions:
                 symbol_name = node.name
                 if symbol_name not in index[symbol_type]:
@@ -95,6 +102,15 @@ class RepoHelper:
                         ),
                     }
                 )
+
+            for fastapi_node in visitor.fastapi_app_definitions:
+                app_def = {
+                    "file_path": file_content.path,
+                    "line_number": fastapi_node.lineno,
+                    "content": "\n".join(file_data.splitlines()[fastapi_node.lineno - 1 : fastapi_node.lineno])
+                }
+                index["fastapi_app"] = app_def  # TODO: extend for repos hosting multiple FastAPI applications
+
         except Exception as e:
             logger.exception(f"Error processing {file_content.path}: {e}")
 
@@ -142,6 +158,13 @@ class RepoHelper:
                 "github_file_content": file_content,
             }
         )
+
+    def get_fastapi_app_path(self) -> Optional[str]:
+        """Return the path of the FastAPI app if available."""
+        app_info = self.index.get("fastapi_app")
+        if app_info:
+            return app_info['file_path']
+        return None
 
     def create_pull_request_with_new_function(
         self,
