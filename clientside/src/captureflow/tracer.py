@@ -37,21 +37,21 @@ class Tracer:
         #       Min verbosity (e.g. only exceptions)    => we could patch Flask/FastAPI methods and that would be better performance wise
         @wraps(func)
         async def wrapper(*args, **kwargs) -> Any:
-            invocation_id = str(uuid.uuid4())
-            context = {
-                "invocation_id": invocation_id,
-                "timestamp": datetime.now().isoformat(),
-                "endpoint": func.__qualname__,
-                "input": {
-                    "args": [self._serialize_variable(arg) for arg in args],
-                    "kwargs": {k: self._serialize_variable(v) for k, v in kwargs.items()},
-                },
-                "execution_trace": [],
-                "log_filename": f"{TEMP_FOLDER}{func.__name__}_trace_{invocation_id}.json",
-            }
-
-            sys.settrace(self._setup_trace(context))
             try:
+                invocation_id = str(uuid.uuid4())
+                context = {
+                    "invocation_id": invocation_id,
+                    "timestamp": datetime.now().isoformat(),
+                    "endpoint": func.__qualname__,
+                    "input": {
+                        "args": [self._serialize_variable(arg) for arg in args],
+                        "kwargs": {k: self._serialize_variable(v) for k, v in kwargs.items()},
+                    },
+                    "execution_trace": [],
+                    "log_filename": f"{TEMP_FOLDER}{func.__name__}_trace_{invocation_id}.json",
+                }
+
+                sys.settrace(self._setup_trace(context))
                 result = await func(*args, **kwargs) if asyncio.iscoroutinefunction(func) else func(*args, **kwargs)
                 context["output"] = {"result": self._serialize_variable(result)}
             finally:
@@ -84,7 +84,11 @@ class Tracer:
         try:
             json_value = json.dumps(value)
         except Exception as e:
-            json_value = str(value)
+            try:
+                json_value = str(value)  # If the value cannot be serialized to JSON, use str() / repr()
+            except Exception as e:
+                json_value = "<unrepresentable object>"  # Very rare case, but can happen with e.g. MagicMocks
+                logger.info(f"Failed to convert variable to string. Type: {type(value)}, Error: {e}")
 
         return {"python_type": str(type(value)), "json_serialized": json_value}
 
