@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 from redis import Redis
 
 from src.utils.call_graph import CallGraph
+from src.utils.docker_executor import DockerExecutor
 from src.utils.integrations.github_integration import RepoHelper
 from src.utils.integrations.openai_integration import OpenAIHelper
 
@@ -19,12 +20,27 @@ class TestCoverageCreator:
         self.repo_url = repo_url
         self.gpt_helper = OpenAIHelper()
         self.repo_helper = RepoHelper(repo_url)
+        self.docker_executor = DockerExecutor(repo_url)
 
     def run(self):
         graphs = self.build_graphs_from_redis()
+        
+        # Running Docker tests with initial test suite
+        initial_test_output = self.docker_executor.execute_with_new_files({})
+        endpoint_coverage = self.calculate_endpoint_coverage(initial_test_output)
+
         for graph in graphs:
             self.repo_helper.enrich_callgraph_with_github_context(graph)
-            entry_point_node_id = self.select_function_to_cover(graph)
+            endpoint_invoked = self.determine_invoked_endpoint(graph)
+
+            if endpoint_invoked:
+                app_path = self.repo_helper.identify_app_for_endpoint(endpoint_invoked)
+                print(f"Endpoint {endpoint_invoked['function']} is likely part of the app at {app_path}")
+            else:
+                print("No endpoint was clearly invoked in this trace.")
+
+            entry_point_node_id = self.select_function_to_cover(graph, endpoint_coverage)
+
             if entry_point_node_id is None:
                 logger.info("No entry point function was selected for coverage.")
                 continue
@@ -45,6 +61,14 @@ class TestCoverageCreator:
                 logger.info(
                     f"Generated full pytest code for {graph.graph.nodes[entry_point_node_id]['function']}:\n{pytest_full_code}"
                 )
+
+                # Running Docker tests with update test suite
+                # TODO: is there a better heuristic? / take desired path from user
+                desired_test_path = "serverside/tests/test_app.py"
+                new_test_files = {desired_test_path: pytest_full_code}
+                modified_test_output = self.docker_executor.execute_with_new_files(new_test_files)
+                test_diff = self.compare_test_coverage(initial_test_output, modified_test_output)
+
                 test_file_name = f"captureflow_tests/test_{graph.graph.nodes[entry_point_node_id]['function'].replace(' ', '_').lower()}.py"
                 self.repo_helper.create_pull_request_with_test(
                     test_file_name, pytest_full_code, graph.graph.nodes[entry_point_node_id]["function"]
@@ -61,14 +85,67 @@ class TestCoverageCreator:
                 log_data = json.loads(log_data_json.decode("utf-8"))
                 graphs.append(CallGraph(json.dumps(log_data)))
         return graphs
-
-    def select_function_to_cover(self, graph: CallGraph) -> Optional[str]:
-        # Select the first non-stdlib node as the entry point for testing.
-        # TODO: Replace with a way to get endpoint
-        for node_id, data in graph.graph.nodes(data=True):
-            if data.get("tag") != "STDLIB":
-                return node_id
+    
+    def determine_invoked_endpoint(self, graph):
+        """
+        Determine which endpoint was invoked based on the call graph. Assumes each node might have information
+        like 'github_file_path' and function name that can be mapped to known endpoints.
+        """
+        for node_id, data in graph.nodes(data=True):
+            for endpoint in self.repo_helper.get_fastapi_endpoints():
+                if data.get('github_file_path') == endpoint['file_path'] and data.get('function') == endpoint['function']:
+                    return endpoint
         return None
+
+    def calculate_endpoint_coverage(self, test_output):
+        """ Calculate and return coverage data for each endpoint, ordered by uncovered percentage. """
+        endpoints = self.repo_helper.get_fastapi_endpoints()
+        endpoint_coverage = []
+
+        for endpoint in endpoints:
+            uncovered_lines = self.calculate_uncovered_lines(endpoint, test_output)
+            total_lines = endpoint['line_end'] - endpoint['line_start'] + 1
+            coverage_percent = 100 - (uncovered_lines / total_lines * 100)
+            endpoint_coverage.append((endpoint, coverage_percent))
+
+        endpoint_coverage.sort(key=lambda x: x[1])  # Sort by coverage percentage
+        return endpoint_coverage
+
+    def calculate_uncovered_lines(self, endpoint, test_output):
+        """ Calculate the number of uncovered lines for a given endpoint based on test output. """
+        uncovered_lines = 0
+        for file_path, coverage_data in test_output.test_coverage.items():
+            if file_path == endpoint['file_path']:
+                uncovered_lines += len([line for line in coverage_data.missing_lines if endpoint['line_start'] <= line <= endpoint['line_end']])
+        return uncovered_lines
+    
+    def select_function_to_cover(self, graph: CallGraph, endpoint_coverage) -> Optional[str]:
+        """ Select the least covered FastAPI endpoint function from the graph. """
+        least_covered = None
+        min_coverage = float('inf')
+        for endpoint, coverage in endpoint_coverage:
+            for node_id, data in graph.graph.nodes(data=True):
+                if data.get("function") == endpoint["function"] and coverage < min_coverage:
+                    least_covered = node_id
+                    min_coverage = coverage
+
+        return least_covered
+    
+    def compare_test_coverage(self, initial_output, modified_output):
+        """ Compare initial and modified test coverage and log the differences. """
+        coverage_diff = {}
+        for file_path, initial_data in initial_output.test_coverage.items():
+            if file_path in modified_output.test_coverage:
+                new_data = modified_output.test_coverage[file_path]
+                previous = initial_data.coverage
+                new = new_data.coverage
+                change = new - previous
+                coverage_diff[file_path] = {'previous': previous, 'new': new, 'change': change}
+                logger.info(f"Coverage for {file_path}: {previous}% -> {new}% (Change: {change}%)")
+            else:
+                coverage_diff[file_path] = {'previous': initial_data.coverage, 'new': 'N/A', 'change': 'N/A'}
+
+        return coverage_diff
 
     def analyze_external_interactions_with_chatgpt(self, node_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         function_implementation = node_data.get("github_function_implementation", {}).get("content", "Not available")
@@ -145,6 +222,10 @@ class TestCoverageCreator:
             for interaction in all_interactions
             if interaction.get("certainty", "low") == "high" and "mock_idea" in interaction
         )
+
+        # TODO, implement a way to find where fastAPI app is located
+        # TODO, assume you have an input (desired_test_location)
+        # TODO, construct path to import fastAPI app from desired_test_location
 
         function_name = entry_point_data["function"]
         file_path = entry_point_data.get("github_file_path", "unknown")

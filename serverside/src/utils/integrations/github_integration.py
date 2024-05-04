@@ -15,21 +15,50 @@ logger.setLevel(logging.INFO)
 
 
 class DefinitionVisitor(ast.NodeVisitor):
-    """Used to expose definitions met via self.definitions field"""
+    """Used to expose definitions met via self.definitions field and FastAPI specific definitions."""
 
-    def __init__(self):
+    def __init__(self, filepath):
+        self.filepath = filepath
         self.definitions = []
+        self.fastapi_app_definitions = []
+        self.fastapi_endpoints = []
 
     def visit_ClassDef(self, node):
         self.definitions.append(("class", node))
         self.generic_visit(node)
 
     def visit_FunctionDef(self, node):
-        self.definitions.append(("function", node))
+        self.process_function(node)
         self.generic_visit(node)
 
     def visit_AsyncFunctionDef(self, node):
+        self.process_function(node)
+        self.generic_visit(node)
+
+    def process_function(self, node):
+        """Process both synchronous and asynchronous function definitions."""
         self.definitions.append(("function", node))
+        # Check if this function has FastAPI decorators indicative of an endpoint
+        for decorator in node.decorator_list:
+            if isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Attribute):
+                # TODO, app() is just a pattern for WSGI/ASGI apps, instead we need to inspect actual object instance
+                if isinstance(decorator.func.value, ast.Name) and decorator.func.value.id == 'app':
+                    self.fastapi_endpoints.append({
+                        "type": decorator.func.attr,  # HTTP method type, e.g., get, post
+                        "function": node.name,
+                        "file_path": self.filepath,
+                        "line_start": node.lineno,
+                        "line_end": node.end_lineno if hasattr(node, 'end_lineno') else node.lineno,
+                    })
+
+    def visit_Call(self, node):
+        # Identify the FastAPI() constructor invocation
+        if isinstance(node.func, ast.Name) and node.func.id == 'FastAPI':
+            self.fastapi_app_definitions.append({
+                "file_path": self.filepath,
+                "line_start": node.lineno,
+                "line_end": node.end_lineno if hasattr(node, 'end_lineno') else node.lineno
+            })
         self.generic_visit(node)
 
 
@@ -86,8 +115,10 @@ class RepoHelper:
         try:
             file_data = file_content.decoded_content.decode("utf-8")
             tree = ast.parse(file_data, filename=file_content.path)
-            visitor = DefinitionVisitor()
+            visitor = DefinitionVisitor(filepath=file_content.path)
             visitor.visit(tree)
+
+            # Enrich index with general Function/Class information
             for symbol_type, node in visitor.definitions:
                 symbol_name = node.name
                 if symbol_name not in index[symbol_type]:
@@ -104,11 +135,57 @@ class RepoHelper:
                         ),
                     }
                 )
+            # Enrich index with FastAPI constructor invocations
+            for app_def in visitor.fastapi_app_definitions:
+                index.setdefault("fastapi_apps", []).append(app_def)
+
+            # Enrich index with FastAPI endpoint definitions
+            for endpoint in visitor.fastapi_endpoints:
+                index.setdefault("fastapi_endpoints", []).append(endpoint)
         except Exception as e:
             logger.exception(f"Error processing {file_content.path}: {e}")
 
     def lookup_index(self, symbol_name: str, symbol_type: str) -> Optional[Dict[str, Any]]:
         return self.index.get(symbol_type, {}).get(symbol_name)
+    
+    def get_fastapi_app_paths(self) -> List[str]:
+        """Return the path of the FastAPI app if available."""
+        apps_info = self.index.get("fastapi_apps")
+        if apps_info:
+            return apps_info
+        return None
+    
+    def get_fastapi_endpoints(self) -> List[Dict[str, Any]]:
+        """
+        Retrieve all FastAPI endpoint definitions from the index.
+        
+        Returns:
+            List[Dict[str, Any]]: A list of dictionaries where each dictionary contains
+            details about an endpoint such as the HTTP method, function name,
+            file path, start line, and end line.
+        """
+        endpoints_info = self.index.get("fastapi_endpoints")
+        if endpoints_info:
+            return endpoints_info
+        return None
+
+    def identify_app_for_endpoint(self, endpoint_info):
+        """
+        Simple heuristic to determine which FastAPI app a given endpoint might belong to based on directory structure.
+        """
+        endpoint_file = endpoint_info['file_path']
+        app_definitions = self.get_fastapi_app_definitions()
+        likely_app = None
+        longest_match = 0
+
+        for app in app_definitions:
+            # Calculate the longest common path prefix
+            common_prefix = os.path.commonprefix([endpoint_file, app['file_path']])
+            if len(common_prefix) > longest_match:
+                longest_match = len(common_prefix)
+                likely_app = app['file_path']
+
+        return likely_app
 
     def enrich_node_with_github_data(self, node):
         """
