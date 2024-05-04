@@ -1,7 +1,7 @@
 # Use an official Python runtime as a parent image
 FROM python:3.11-slim
 
-ENV RUN_TEST_COVERAGE "pytest --cov=. --cov-report json"
+ENV RUN_TEST_COVERAGE "pytest --cov=. --cov-report json >/dev/null && cat coverage.json"
 
 # Set the working directory in the container
 WORKDIR /usr/src/app

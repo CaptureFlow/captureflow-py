@@ -54,6 +54,16 @@ class RepoHelper:
                     return repo
         raise ValueError(f"No matching installation was found for {repo_url}. Maybe the app is not installed yet.")
 
+    def get_installation_by_url(self, repo_url: str) -> Optional[Repository.Repository]:
+        installations = self.github_integration.get_installations()
+
+        for installation in installations:
+            for repo in installation.get_repos():
+                if repo.html_url == repo_url:
+                    return installation
+        raise ValueError(f"No matching installation was found for {repo_url}. Maybe the app is not installed yet.")
+
+
     def enrich_callgraph_with_github_context(self, callgraph: CallGraph) -> None:
         for node_id in callgraph.graph.nodes:
             node = callgraph.graph.nodes[node_id]
