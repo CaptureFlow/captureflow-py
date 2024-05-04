@@ -1,0 +1,20 @@
+# Use an official Python runtime as a parent image
+FROM python:3.11-slim
+
+ENV RUN_TEST_COVERAGE "pytest --cov=. --cov-report json"
+
+# Set the working directory in the container
+WORKDIR /usr/src/app
+
+# Copy the server directory contents into the container at /usr/src/app
+COPY serverside .
+
+# Install any needed packages specified in requirements.txt
+RUN python -m pip install --upgrade pip
+RUN python -m pip install --no-cache-dir -r requirements-dev.txt
+RUN apt-get update -y && apt-get install git -y
+
+# Make port 8000 available to the world outside this container
+EXPOSE 8000
+
+CMD ["tail", "-f", "/dev/null"]
