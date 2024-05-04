@@ -7,7 +7,7 @@ ENV RUN_TEST_COVERAGE "pytest --cov=. --cov-report json"
 WORKDIR /usr/src/app
 
 # Copy the server directory contents into the container at /usr/src/app
-COPY serverside .
+COPY . .
 
 # Install any needed packages specified in requirements.txt
 RUN python -m pip install --upgrade pip
