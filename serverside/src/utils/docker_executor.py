@@ -76,7 +76,7 @@ class DockerExecutor:
         return PytestOutput(test_coverage=test_coverage)
 
     def _create_files(self, repo_dir: Path, new_files: dict[str, str]):
-        for file_path, contents in new_files:
+        for file_path, contents in new_files.items():
             with open(repo_dir / file_path, 'w') as f:
                 logging.info(f'Creating new file at: {repo_dir / file_path}')
                 f.write(contents)
