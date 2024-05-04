@@ -64,19 +64,22 @@ class DockerExecutor:
         subprocess.run(cmd.split(' '))
 
     def _run_tests_and_get_coverage(self, tag: str) -> PytestOutput:
-        cmd = f'docker run -t {tag} /bin/bash -c "pytest --cov=. --cov-report json >/dev/null && cat coverage.json"'
+        # TODO: It's temporary fix, will think about it later.
+        cmd = f'docker run -t {tag} /bin/bash -c "cd serverside && pytest --cov=. --cov-report json >/dev/null && cat coverage.json"'
         logging.info(f'Running cmd: {cmd}')
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
         output = json.loads(proc.stdout.read().decode('utf-8'))
         
+        # TODO: This is temporary solution for testing.
         test_coverage = {
-            key: TestCoverageItem(coverage=float(info_dict['summary']['percent_covered']), missing_lines=list(info_dict['missing_lines'])) for key, info_dict in output['files'].items()
+            f'serverside/{key}': TestCoverageItem(coverage=float(info_dict['summary']['percent_covered']), missing_lines=list(info_dict['missing_lines'])) for key, info_dict in output['files'].items()
         }
 
         return PytestOutput(test_coverage=test_coverage)
 
     def _create_files(self, repo_dir: Path, new_files: dict[str, str]):
         for file_path, contents in new_files.items():
+            # TODO: This is done temporarily, will change it later to properly copy it to docker.
             with open(repo_dir / file_path, 'w') as f:
                 logging.info(f'Creating new file at: {repo_dir / file_path}')
                 f.write(contents)
@@ -100,21 +103,21 @@ class DockerExecutor:
         jwt_key = self._generate_jwt(APP_ID, PRIVATE_KEY)
         access_token = self._get_installation_access_token(installation.id, jwt_key)
 
-        with tempfile.TemporaryDirectory(dir=Path.cwd()) as repo_dir:
-            logging.info(f'Created temporary directory to clone repo: {repo_dir}')
-            self._clone_repository(self.repo_url, access_token, output_path=repo_dir)
-            tag = str(uuid4()).split('-')[0]
-            self._build_container(tag=tag, repo_path=Path(repo_dir))
-            if len(new_files) > 0:
-                self._create_files(Path(repo_dir), new_files)
+        repo_dir = tempfile.TemporaryDirectory(dir=Path.cwd()).name
+        logging.info(f'Created temporary directory to clone repo: {repo_dir}')
+        self._clone_repository(self.repo_url, access_token, output_path=repo_dir)
+        if len(new_files) > 0:
+            self._create_files(Path(repo_dir), new_files)
+        tag = str(uuid4()).split('-')[0]
+        self._build_container(tag=tag, repo_path=Path(repo_dir))
 
-            pytest_output = self._run_tests_and_get_coverage(tag=tag)
-            return pytest_output
+        pytest_output = self._run_tests_and_get_coverage(tag=tag)
+        return pytest_output
 
 
 def main():
     docker_executor = DockerExecutor('https://github.com/CaptureFlow/captureflow-py')
-    pytest_output = docker_executor.execute_with_new_files({})
+    pytest_output = docker_executor.execute_with_new_files({'serverside/tests/test_a.py': 'print(1)'})
     print(pytest_output.test_coverage)
 
 
