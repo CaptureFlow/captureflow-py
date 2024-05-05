@@ -65,7 +65,7 @@ class DockerExecutor:
 
     def _run_tests_and_get_coverage(self, tag: str) -> PytestOutput:
         # TODO: It's temporary fix, will think about it later.
-        cmd = f'docker run -t {tag} /bin/bash -c "cd serverside && pytest --cov=. --cov-report json >/dev/null && cat coverage.json"'
+        cmd = f'docker run -t {tag} /bin/bash -c "cd serverside && pytest --cov=. --cov-report json >/dev/null; cat coverage.json"'
         logging.info(f'Running cmd: {cmd}')
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
         output = json.loads(proc.stdout.read().decode('utf-8'))
@@ -117,7 +117,12 @@ class DockerExecutor:
 
 def main():
     docker_executor = DockerExecutor('https://github.com/CaptureFlow/captureflow-py')
+    # Valid input
     pytest_output = docker_executor.execute_with_new_files({'serverside/tests/test_a.py': 'print(1)'})
+    print(pytest_output.test_coverage)
+
+    # Invalid input
+    pytest_output = docker_executor.execute_with_new_files({'serverside/tests/test_a.py': 'ppprint(1)'})
     print(pytest_output.test_coverage)
 
 
