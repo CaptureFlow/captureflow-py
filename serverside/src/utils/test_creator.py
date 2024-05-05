@@ -24,57 +24,45 @@ class TestCoverageCreator:
 
     def run(self):
         graphs = self.build_graphs_from_redis()
-        
-        # Running Docker tests with initial test suite
-        initial_test_output = self.docker_executor.execute_with_new_files({})
-        endpoint_coverage = self.calculate_endpoint_coverage(initial_test_output)
 
         for graph in graphs:
             self.repo_helper.enrich_callgraph_with_github_context(graph)
             endpoint_invoked = self.determine_invoked_endpoint(graph)
+            
+            print("ENDPOINT INVOKED = ", endpoint_invoked)
 
             if endpoint_invoked:
                 app_path = self.repo_helper.identify_app_for_endpoint(endpoint_invoked)
-                print(f"Endpoint {endpoint_invoked['function']} is likely part of the app at {app_path}")
+                print("APP PATH = ", app_path)
+                if app_path:
+                    self.process_endpoint(graph, endpoint_invoked, app_path)
+                else:
+                    logger.error(f"App path could not be determined for endpoint {endpoint_invoked['function']}")
             else:
-                print("No endpoint was clearly invoked in this trace.")
+                logger.info("No endpoint was clearly invoked in this trace.")
 
-            entry_point_node_id = self.select_function_to_cover(graph, endpoint_coverage)
+    def process_endpoint(self, graph, endpoint_invoked, app_path):
+        logger.info(f"Processing endpoint {endpoint_invoked['function']} in app at {app_path}")
+        initial_test_output = self.docker_executor.execute_with_new_files({})
+        endpoint_coverage = self.calculate_endpoint_coverage(initial_test_output)
 
-            if entry_point_node_id is None:
-                logger.info("No entry point function was selected for coverage.")
-                continue
-
-            all_interactions = []  # Stores GPT-friendly info regarding what interactions are likely external (DBs/APIs)
-            function_context = (
-                []
-            )  # Stores GPT-friendly info regarding what CallGraph nodes are doing (implementation, filename, etc)
-            self.analyze_graph_for_interactions_and_context(
-                graph, entry_point_node_id, all_interactions, function_context
-            )
-
-            test_prompt = self.generate_test_prompt(function_context, all_interactions, graph, entry_point_node_id)
-            gpt_response = self.gpt_helper.call_chatgpt(test_prompt)
-            pytest_full_code = self.gpt_helper.extract_first_code_block(gpt_response)
+        entry_point_node_id = self.select_function_to_cover(graph, endpoint_coverage)
+        print("ENDPOINT TO COVER = ", entry_point_node_id)
+        if entry_point_node_id:
+            all_interactions, function_context = [], []
+            self.analyze_graph_for_interactions_and_context(graph, entry_point_node_id, all_interactions, function_context)
+            desired_test_path = "serverside/tests/test_app.py"
+            prompt = self.generate_test_prompt(function_context, all_interactions, graph, entry_point_node_id, app_path, desired_test_path)
+            print("PROMPT = ", prompt)
+            pytest_full_code = self.generate_and_test_pytest_code(prompt, entry_point_node_id, initial_test_output, desired_test_path)
 
             if pytest_full_code:
-                logger.info(
-                    f"Generated full pytest code for {graph.graph.nodes[entry_point_node_id]['function']}:\n{pytest_full_code}"
-                )
-
-                # Running Docker tests with update test suite
-                # TODO: is there a better heuristic? / take desired path from user
-                desired_test_path = "serverside/tests/test_app.py"
-                new_test_files = {desired_test_path: pytest_full_code}
-                modified_test_output = self.docker_executor.execute_with_new_files(new_test_files)
-                test_diff = self.compare_test_coverage(initial_test_output, modified_test_output)
-
-                test_file_name = f"captureflow_tests/test_{graph.graph.nodes[entry_point_node_id]['function'].replace(' ', '_').lower()}.py"
-                self.repo_helper.create_pull_request_with_test(
-                    test_file_name, pytest_full_code, graph.graph.nodes[entry_point_node_id]["function"]
-                )
+                test_file_name = f"serverside/tests/test_{graph.graph.nodes[entry_point_node_id]['function'].replace(' ', '_').lower()}.py"
+                self.repo_helper.create_pull_request_with_test(test_file_name, pytest_full_code, graph.graph.nodes[entry_point_node_id]["function"])
             else:
-                logger.error("Failed to generate valid full pytest code.")
+                logger.error("Failed to generate or validate pytest code.")
+        else:
+            logger.error("No suitable entry point function was selected for coverage improvement.")
 
     def build_graphs_from_redis(self) -> List[CallGraph]:
         graphs = []
@@ -86,12 +74,31 @@ class TestCoverageCreator:
                 graphs.append(CallGraph(json.dumps(log_data)))
         return graphs
     
+    def generate_and_test_pytest_code(self, prompt, entry_point_node_id, initial_test_output, desired_test_path="serverside/tests/test_app.py"):
+        gpt_response = self.gpt_helper.call_chatgpt(prompt)
+        pytest_full_code = self.gpt_helper.extract_first_code_block(gpt_response)
+        if pytest_full_code:
+            logger.info(f"Generated full pytest code for function {entry_point_node_id}:\n{pytest_full_code}")
+            new_test_files = {desired_test_path: pytest_full_code}
+            modified_test_output = self.docker_executor.execute_with_new_files(new_test_files)
+
+            # After updating the tests, compare the coverage to see the improvements
+            test_diff = self.compare_test_coverage(initial_test_output, modified_test_output)
+            logger.info(f"Test coverage difference: {test_diff}")
+
+            # Return the full pytest code for additional actions (like creating files or PRs)
+            return pytest_full_code
+        else:
+            logger.error("Failed to generate valid pytest code from GPT response.")
+            return None
+
+    
     def determine_invoked_endpoint(self, graph):
         """
         Determine which endpoint was invoked based on the call graph. Assumes each node might have information
         like 'github_file_path' and function name that can be mapped to known endpoints.
         """
-        for node_id, data in graph.nodes(data=True):
+        for node_id, data in graph.graph.nodes(data=True):
             for endpoint in self.repo_helper.get_fastapi_endpoints():
                 if data.get('github_file_path') == endpoint['file_path'] and data.get('function') == endpoint['function']:
                     return endpoint
@@ -208,8 +215,26 @@ class TestCoverageCreator:
         for successor in graph.graph.successors(node_id):
             self.analyze_graph_for_interactions_and_context(graph, successor, interactions, function_context)
 
-    def generate_test_prompt(self, function_context, all_interactions, graph, entry_point_node_id):
+    def generate_import_statement(self, app_path, desired_test_path):
+        # Define the root module name (folder before 'tests')
+        test_dir = os.path.dirname(desired_test_path)
+        root_module = os.path.basename(os.path.dirname(test_dir))
+
+        # Get the relative path from the test directory to the app file, excluding the root module from the path
+        relative_path_from_root = os.path.relpath(app_path, start=os.path.join(test_dir, '..'))
+
+        # Normalize the path for use in an import statement
+        normalized_import_path = relative_path_from_root.replace(os.path.sep, '.').rstrip('.py')
+
+        # Form the import statement
+        import_statement = f"from {root_module}.{normalized_import_path} import your_fastapi_instance"
+
+        return import_statement
+
+    def generate_test_prompt(self, function_context, all_interactions, graph, entry_point_node_id, app_path, desired_test_path):
         entry_point_data = graph.graph.nodes[entry_point_node_id]
+
+        import_statement = self.generate_import_statement(app_path, desired_test_path)
 
         # Load the pytest template from the resources directory
         template_path = os.path.join(os.path.dirname(__file__), "resources", "pytest_template.py")
@@ -227,9 +252,6 @@ class TestCoverageCreator:
         # TODO, assume you have an input (desired_test_location)
         # TODO, construct path to import fastAPI app from desired_test_location
 
-        function_name = entry_point_data["function"]
-        file_path = entry_point_data.get("github_file_path", "unknown")
-        line_number = entry_point_data.get("github_function_implementation", {}).get("start_line", "unknown")
         function_implementation = entry_point_data.get("github_function_implementation", {}).get(
             "content", "Not available"
         )
@@ -241,7 +263,9 @@ class TestCoverageCreator:
         context_details = "\n".join(function_context)
 
         prompt = (
-            f"Write a complete pytest file for testing the WSGI app entry point '{function_name}' defined in '{file_path}' at line {line_number}. "
+            f"Write a complete pytest file for testing the FastAPI app located at '{app_path}', specifically the endpoint "
+            f"'{entry_point_data['function']}' defined in '{entry_point_data['github_file_path']}' at line {entry_point_data['github_function_implementation']['start_line']}. "
+            f"Import the application using: {import_statement}\n"
             f"Full function implementation from the source file:\n{full_function_content}\n"
             f"Function implementation snippet:\n{function_implementation}\n"
             f"Arguments: {arguments}\n"

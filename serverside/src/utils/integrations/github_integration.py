@@ -2,6 +2,7 @@ import ast
 import base64
 import logging
 import uuid
+import os
 from typing import Any, Dict, List, Optional
 
 from github import GithubIntegration, Repository
@@ -148,7 +149,7 @@ class RepoHelper:
     def lookup_index(self, symbol_name: str, symbol_type: str) -> Optional[Dict[str, Any]]:
         return self.index.get(symbol_type, {}).get(symbol_name)
     
-    def get_fastapi_app_paths(self) -> List[str]:
+    def get_fastapi_app(self) -> List[Dict[str, Any]]:
         """Return the path of the FastAPI app if available."""
         apps_info = self.index.get("fastapi_apps")
         if apps_info:
@@ -172,9 +173,10 @@ class RepoHelper:
     def identify_app_for_endpoint(self, endpoint_info):
         """
         Simple heuristic to determine which FastAPI app a given endpoint might belong to based on directory structure.
+        TODO: Identify app/endpoint during clientside registration and rely on that
         """
         endpoint_file = endpoint_info['file_path']
-        app_definitions = self.get_fastapi_app_definitions()
+        app_definitions = self.get_fastapi_app()
         likely_app = None
         longest_match = 0
 
