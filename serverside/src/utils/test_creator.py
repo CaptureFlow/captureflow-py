@@ -5,7 +5,6 @@ from typing import Any, Dict, List, Optional
 
 from redis import Redis
 from src.utils.call_graph import CallGraph
-
 # from src.utils.docker_executor import DockerExecutor
 from src.utils.integrations.github_integration import RepoHelper
 from src.utils.integrations.openai_integration import OpenAIHelper
