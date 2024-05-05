@@ -103,16 +103,16 @@ class DockerExecutor:
         jwt_key = self._generate_jwt(APP_ID, PRIVATE_KEY)
         access_token = self._get_installation_access_token(installation.id, jwt_key)
 
-        repo_dir = tempfile.TemporaryDirectory(dir=Path.cwd()).name
-        logging.info(f'Created temporary directory to clone repo: {repo_dir}')
-        self._clone_repository(self.repo_url, access_token, output_path=repo_dir)
-        if len(new_files) > 0:
-            self._create_files(Path(repo_dir), new_files)
-        tag = str(uuid4()).split('-')[0]
-        self._build_container(tag=tag, repo_path=Path(repo_dir))
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as repo_dir:
+            logging.info(f'Created temporary directory to clone repo: {repo_dir}')
+            self._clone_repository(self.repo_url, access_token, output_path=repo_dir)
+            if len(new_files) > 0:
+                self._create_files(Path(repo_dir), new_files)
+            tag = str(uuid4()).split('-')[0]
+            self._build_container(tag=tag, repo_path=Path(repo_dir))
 
-        pytest_output = self._run_tests_and_get_coverage(tag=tag)
-        return pytest_output
+            pytest_output = self._run_tests_and_get_coverage(tag=tag)
+            return pytest_output
 
 
 def main():
