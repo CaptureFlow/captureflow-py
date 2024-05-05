@@ -10,6 +10,11 @@ COPY . .
 # Install any needed packages specified in requirements.txt
 RUN python -m pip install --upgrade pip
 RUN python -m pip install --no-cache-dir -r requirements.txt
+RUN apt-get update -y && apt-get install git curl -y
+
+# Install docker to start client's docker images.
+RUN curl -fsSL https://get.docker.com -o get-docker.sh
+RUN sh get-docker.sh
 
 # Make port 8000 available to the world outside this container
 EXPOSE 8000
