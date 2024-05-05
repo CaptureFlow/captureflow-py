@@ -22,10 +22,12 @@ class TestCoverageItem:
 logging.basicConfig(level=logging.INFO)
 
 class PytestOutput:
-    def __init__(self, test_coverage: dict[Path, TestCoverageItem]):
+    def __init__(self, test_coverage: dict[Path, TestCoverageItem], pytest_raw_output: str):
         self.test_coverage = test_coverage
+        self.pytest_raw_output = pytest_raw_output
 
 class DockerExecutor:
+    SPLIT_TOKEN = "====SPLIT====="
     def __init__(self, repo_url):
         """
         User repo will have .captureflow['run-tests']
@@ -65,17 +67,20 @@ class DockerExecutor:
 
     def _run_tests_and_get_coverage(self, tag: str) -> PytestOutput:
         # TODO: It's temporary fix, will think about it later.
-        cmd = f'docker run -t {tag} /bin/bash -c "cd serverside && pytest --cov=. --cov-report json >/dev/null; cat coverage.json"'
+        cmd = f'docker run -t {tag} /bin/bash -c "cd serverside && pytest --cov=. --cov-report json >pytest_output; cat coverage.json; echo "{self.SPLIT_TOKEN}"; cat pytest_output;"'
         logging.info(f'Running cmd: {cmd}')
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
-        output = json.loads(proc.stdout.read().decode('utf-8'))
+
+        cmd_output = proc.stdout.read().decode('utf-8')
+        coverage_output, pytest_raw_output = cmd_output.split(self.SPLIT_TOKEN)
+        coverage_output = json.loads(coverage_output)
         
         # TODO: This is temporary solution for testing.
         test_coverage = {
-            f'serverside/{key}': TestCoverageItem(coverage=float(info_dict['summary']['percent_covered']), missing_lines=list(info_dict['missing_lines'])) for key, info_dict in output['files'].items()
+            f'serverside/{key}': TestCoverageItem(coverage=float(info_dict['summary']['percent_covered']), missing_lines=list(info_dict['missing_lines'])) for key, info_dict in coverage_output['files'].items()
         }
 
-        return PytestOutput(test_coverage=test_coverage)
+        return PytestOutput(test_coverage=test_coverage, pytest_raw_output=pytest_raw_output)
 
     def _create_files(self, repo_dir: Path, new_files: dict[str, str]):
         for file_path, contents in new_files.items():
