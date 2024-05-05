@@ -63,7 +63,6 @@ class RepoHelper:
                     return installation
         raise ValueError(f"No matching installation was found for {repo_url}. Maybe the app is not installed yet.")
 
-
     def enrich_callgraph_with_github_context(self, callgraph: CallGraph) -> None:
         for node_id in callgraph.graph.nodes:
             node = callgraph.graph.nodes[node_id]
