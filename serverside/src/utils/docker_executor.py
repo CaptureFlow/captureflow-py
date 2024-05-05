@@ -74,7 +74,7 @@ class DockerExecutor:
         cmd_output = proc.stdout.read().decode('utf-8')
         coverage_output, pytest_raw_output = cmd_output.split(self.SPLIT_TOKEN)
         coverage_output = json.loads(coverage_output)
-        
+
         # TODO: This is temporary solution for testing.
         test_coverage = {
             f'serverside/{key}': TestCoverageItem(coverage=float(info_dict['summary']['percent_covered']), missing_lines=list(info_dict['missing_lines'])) for key, info_dict in coverage_output['files'].items()

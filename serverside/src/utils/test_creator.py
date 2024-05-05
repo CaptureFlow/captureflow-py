@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional
 from redis import Redis
 
 from src.utils.call_graph import CallGraph
+# from src.utils.docker_executor import DockerExecutor
 from src.utils.integrations.github_integration import RepoHelper
 from src.utils.integrations.openai_integration import OpenAIHelper
 
@@ -21,6 +22,9 @@ class TestCoverageCreator:
         self.repo_helper = RepoHelper(repo_url)
 
     def run(self):
+        # Try to run tests.
+        # docker_executor = DockerExecutor(repo=repo_url)
+
         graphs = self.build_graphs_from_redis()
         for graph in graphs:
             self.repo_helper.enrich_callgraph_with_github_context(graph)
