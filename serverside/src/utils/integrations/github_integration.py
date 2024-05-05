@@ -5,7 +5,6 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 from github import GithubIntegration, Repository
-
 from src.config import GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY_BASE64
 from src.utils.call_graph import CallGraph
 from src.utils.integrations.openai_integration import OpenAIHelper
