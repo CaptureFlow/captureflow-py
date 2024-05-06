@@ -1,7 +1,8 @@
-import pytest
 import json
+from unittest.mock import MagicMock, patch
+
+import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
 
 # Load Mock JSON Payloads
 with open("generate_bugfix_mr_mock_data.json", "r") as f:
