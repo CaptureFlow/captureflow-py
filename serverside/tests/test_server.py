@@ -6,11 +6,11 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from src.server import app
-
 
 @pytest.fixture
 def client():
+    from src.server import app
+
     with TestClient(app) as client:
         yield client
 
