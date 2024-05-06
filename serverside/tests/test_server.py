@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 @pytest.fixture
 def client():
     from src.server import app
+
     with TestClient(app) as client:
         yield client
 
@@ -48,7 +49,9 @@ def normalize_trace_data(data: Dict[str, Any]) -> Dict[str, Any]:
 
 def test_store_trace_log(client, mock_redis, sample_trace):
     repo_url = "https://github.com/NickKuts/capture_flow"
-    response = client.post("/api/v1/traces", params={"repository-url": repo_url}, json=sample_trace)
+    response = client.post(
+        "/api/v1/traces", params={"repository-url": repo_url}, json=sample_trace
+    )
 
     assert response.status_code == 200
     assert response.json() == {"message": "Trace log saved successfully"}
@@ -59,7 +62,9 @@ def test_store_trace_log(client, mock_redis, sample_trace):
     key_passed_to_redis, json_data_passed_to_redis = called_args
 
     expected_key = f"{repo_url}:{sample_trace['invocation_id']}"
-    assert key_passed_to_redis == expected_key, "Key passed to Redis does not match expected format"
+    assert (
+        key_passed_to_redis == expected_key
+    ), "Key passed to Redis does not match expected format"
 
     # Deserialize & normalize
     actual_data = json.loads(json_data_passed_to_redis)
@@ -67,12 +72,20 @@ def test_store_trace_log(client, mock_redis, sample_trace):
     expected_data = normalize_trace_data(sample_trace)
 
     # Compare normalized data
-    assert actual_data == expected_data, "Normalized data passed to Redis does not match expected data"
+    assert (
+        actual_data == expected_data
+    ), "Normalized data passed to Redis does not match expected data"
 
 
-def test_store_trace_log_with_exception(client, mock_redis, sample_trace_with_exception):
+def test_store_trace_log_with_exception(
+    client, mock_redis, sample_trace_with_exception
+):
     repo_url = "https://github.com/NickKuts/capture_flow"
-    response = client.post("/api/v1/traces", params={"repository-url": repo_url}, json=sample_trace_with_exception)
+    response = client.post(
+        "/api/v1/traces",
+        params={"repository-url": repo_url},
+        json=sample_trace_with_exception,
+    )
 
     assert response.status_code == 200
     assert response.json() == {"message": "Trace log saved successfully"}
@@ -83,7 +96,9 @@ def test_store_trace_log_with_exception(client, mock_redis, sample_trace_with_ex
     key_passed_to_redis, json_data_passed_to_redis = called_args
 
     expected_key = f"{repo_url}:{sample_trace_with_exception['invocation_id']}"
-    assert key_passed_to_redis == expected_key, "Key passed to Redis does not match expected format"
+    assert (
+        key_passed_to_redis == expected_key
+    ), "Key passed to Redis does not match expected format"
 
     # Deserialize & normalize
     actual_data = json.loads(json_data_passed_to_redis)
@@ -91,4 +106,6 @@ def test_store_trace_log_with_exception(client, mock_redis, sample_trace_with_ex
     expected_data = normalize_trace_data(sample_trace_with_exception)
 
     # Compare normalized data
-    assert actual_data == expected_data, "Normalized data passed to Redis does not match expected data"
+    assert (
+        actual_data == expected_data
+    ), "Normalized data passed to Redis does not match expected data"
