@@ -26,6 +26,7 @@ class TestCoverageCreator:
         graphs = self.build_graphs_from_redis()
 
         for graph in graphs:
+            graph.compress_graph()  # Compress the graph to simplify complex call chains
             self.repo_helper.enrich_callgraph_with_github_context(graph)
             endpoint_invoked = self.determine_invoked_endpoint(graph)
             
@@ -198,18 +199,25 @@ class TestCoverageCreator:
         self, graph: CallGraph, node_id: str, interactions: List[Dict[str, Any]], function_context: List[str]
     ):
         node_data = graph.graph.nodes[node_id]
-        if (
-            node_data["tag"] == "STDLIB"
-            or "github_function_implementation" not in node_data
-            or node_data["github_function_implementation"] == "not_found"
-        ):
-            return
+        if node_data.get("is_node_compressed", False):
+            # Handle compressed node specially, recommending mocking of entire module or section
+            interactions.append({
+                "type": "COMPRESSED_NODE",
+                "details": f"Mock entire module due to complexity and interdependencies in {node_data['function']}.",
+                "mock_idea": f'Use MagicMock or create a fixture to simulate {node_data["function"]} behavior.',
+                "certainty": "high",
+            })
+        elif isinstance(node_data.get("github_function_implementation"), dict):  # Ensure it's a dictionary
+            node_interactions = self.analyze_external_interactions_with_chatgpt(node_data)
+            interactions.extend(node_interactions)
 
-        node_interactions = self.analyze_external_interactions_with_chatgpt(node_data)
-        interactions.extend(node_interactions)
+        # Safely extracting function implementation details
+        github_impl = node_data.get("github_function_implementation", {})
+        start_line = github_impl.get('start_line', 'unknown') if isinstance(github_impl, dict) else 'unknown'
+        content = github_impl.get('content', 'Not available') if isinstance(github_impl, dict) else 'Not available'
 
         function_context.append(
-            f"Function '{node_data['function']}' defined in '{node_data.get('github_file_path', 'unknown')}' at line {node_data.get('github_function_implementation', {}).get('start_line', 'unknown')} with this implementation {node_data.get('github_function_implementation', {}).get('content', 'Not available')} should consider the following details for mocking (if needed at all): {json.dumps(node_interactions)}"
+            f"Function '{node_data['function']}' defined in '{node_data.get('github_file_path', 'unknown')}' at line {start_line} with this implementation {content} should consider the following details for mocking (if needed at all): {json.dumps(interactions)}"
         )
 
         for successor in graph.graph.successors(node_id):
