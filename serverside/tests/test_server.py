@@ -10,7 +10,6 @@ from fastapi.testclient import TestClient
 @pytest.fixture
 def client():
     from src.server import app
-
     with TestClient(app) as client:
         yield client
 

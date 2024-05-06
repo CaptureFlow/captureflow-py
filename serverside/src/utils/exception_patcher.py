@@ -30,9 +30,9 @@ class ExceptionPatcher:
         #       + input_valuess
         #   + M child node levels for context
         #       + input_values
+
         for graph in graphs:
             exception_chains = self.select_exception_sequences(graph)
-            logger.info("1");
 
             if not exception_chains:
                 logger.info("No exception chains found in this graph.")
@@ -40,43 +40,23 @@ class ExceptionPatcher:
             else:
                 logger.info(f"Found a graph that contained unhandled exception chain {exception_chains}")
 
-            logger.info("2");
+            
             for exception_chain in exception_chains:
-
-                logger.info("3");
                 context = self.fetch_exception_context(graph, exception_chain)
-                logger.info("4");
                 prompt = self.generate_fix_prompt_based_on_context(context)
-                logger.info("5");
-                # gpt_response = self.gpt_helper.call_chatgpt(prompt)
-                mock_response_json_str = json.dumps(
-                    {
-                        "confidence": 5,
-                        "function_name": "calculate_avg",
-                        "change_reasoning": "Just a mock response.",
-                    }
-                )
-                logger.info("6");
-                gpt_response = f"{mock_response_json_str}\n```python\ndef example()```"
-
+                gpt_response = self.gpt_helper.call_chatgpt(prompt)
                 try:
-                    logger.info("7");
                     json_str = self.extract_json_simple(gpt_response)
-                    logger.info("8");
                     if json_str:
                         gpt_response_dict = json.loads(json_str)
                         change_reasoning = gpt_response_dict.get("change_reasoning", "")
                         function_name = gpt_response_dict.get("function_name", "")
-                        logger.info("9");
                         code_block = self.gpt_helper.extract_first_code_block(gpt_response)
-                        logger.info("X");
 
                         matched_node_ids = graph.find_node_by_fname(function_name)
-                        logger.info("HEHEHEHE");
                         if matched_node_ids:
                             matches_node_id = matched_node_ids[0]
-
-                            logger.info("10");
+                            
                             self.repo_helper.create_pull_request_with_new_function(
                                 graph.graph.nodes[matches_node_id],
                                 context,

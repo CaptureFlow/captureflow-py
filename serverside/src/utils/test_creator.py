@@ -21,6 +21,8 @@ class TestCoverageCreator:
         self.gpt_helper = OpenAIHelper()
         self.repo_helper = RepoHelper(repo_url)
         self.docker_executor = DockerExecutor(repo_url)
+        self.interactions_dir = "interactions"  # Directory to store interaction data
+        os.makedirs(self.interactions_dir, exist_ok=True)
 
     def run(self):
         graphs = self.build_graphs_from_redis()
@@ -48,13 +50,12 @@ class TestCoverageCreator:
         endpoint_coverage = self.calculate_endpoint_coverage(initial_test_output)
 
         entry_point_node_id = self.select_function_to_cover(graph, endpoint_coverage)
-        print("ENDPOINT TO COVER = ", entry_point_node_id)
         if entry_point_node_id:
             all_interactions, function_context = [], []
             self.analyze_graph_for_interactions_and_context(graph, entry_point_node_id, all_interactions, function_context)
+            serialized_context = self.serialize_interactions(all_interactions)
             desired_test_path = "serverside/tests/test_app.py"
-            prompt = self.generate_test_prompt(function_context, all_interactions, graph, entry_point_node_id, app_path, desired_test_path)
-            print("PROMPT = ", prompt)
+            prompt = self.generate_test_prompt(function_context, serialized_context, graph, entry_point_node_id, app_path)
             pytest_full_code = self.generate_and_test_pytest_code(prompt, entry_point_node_id, initial_test_output, desired_test_path)
 
             if pytest_full_code:
@@ -194,31 +195,27 @@ class TestCoverageCreator:
         except (ValueError, json.JSONDecodeError) as e:
             logger.error(f"Failed to decode interaction response from ChatGPT: {e}")
             return []
-
-    def analyze_graph_for_interactions_and_context(
-        self, graph: CallGraph, node_id: str, interactions: List[Dict[str, Any]], function_context: List[str]
-    ):
+        
+    def analyze_graph_for_interactions_and_context(self, graph: CallGraph, node_id: str, interactions: List[Dict[str, Any]], function_context: List[str]):
         node_data = graph.graph.nodes[node_id]
         if node_data.get("is_node_compressed", False):
             # Handle compressed node specially, recommending mocking of entire module or section
             interactions.append({
+                "function": node_data.get('function', 'Unknown Function'),  # Provide a default function name if not available
                 "type": "COMPRESSED_NODE",
-                "details": f"Mock entire module due to complexity and interdependencies in {node_data['function']}.",
-                "mock_idea": f'Use MagicMock or create a fixture to simulate {node_data["function"]} behavior.',
+                "details": f"Mock entire module due to complexity and interdependencies in {node_data.get('function', 'Unknown Function')}.",
+                "mock_idea": "Use MagicMock or create a fixture to simulate behavior.",
                 "certainty": "high",
+                "arguments": node_data.get('arguments', {}),  # Capture arguments from node data
+                "return_value": node_data.get('return_value', {})  # Capture return value from node data
             })
-        elif isinstance(node_data.get("github_function_implementation"), dict):  # Ensure it's a dictionary
+        elif "github_function_implementation" in node_data and node_data["github_function_implementation"] != "not_found":
             node_interactions = self.analyze_external_interactions_with_chatgpt(node_data)
+            for interaction in node_interactions:
+                interaction['function'] = node_data.get('function', 'Unknown Function')  # Ensure function key exists
+                interaction['arguments'] = node_data.get('arguments', {})  # Capture arguments from node data
+                interaction['return_value'] = node_data.get('return_value', {})  # Capture return value from node data
             interactions.extend(node_interactions)
-
-        # Safely extracting function implementation details
-        github_impl = node_data.get("github_function_implementation", {})
-        start_line = github_impl.get('start_line', 'unknown') if isinstance(github_impl, dict) else 'unknown'
-        content = github_impl.get('content', 'Not available') if isinstance(github_impl, dict) else 'Not available'
-
-        function_context.append(
-            f"Function '{node_data['function']}' defined in '{node_data.get('github_file_path', 'unknown')}' at line {start_line} with this implementation {content} should consider the following details for mocking (if needed at all): {json.dumps(interactions)}"
-        )
 
         for successor in graph.graph.successors(node_id):
             self.analyze_graph_for_interactions_and_context(graph, successor, interactions, function_context)
@@ -238,53 +235,40 @@ class TestCoverageCreator:
         import_statement = f"from {root_module}.{normalized_import_path} import your_fastapi_instance"
 
         return import_statement
+    
+    def serialize_interactions(self, interactions):
+        """ Serialize interaction details for mocking to JSON files. """
+        serialized_data_paths = []
+        for interaction in interactions:
+            file_name = f"{interaction['function']}_mock_data.json"
+            file_path = os.path.join(self.interactions_dir, file_name)
+            with open(file_path, 'w') as file:
+                json.dump({
+                    "arguments": interaction["arguments"],
+                    "return_value": interaction["return_value"]
+                }, file, indent=4)
+            serialized_data_paths.append(file_path)
+        return serialized_data_paths
 
-    def generate_test_prompt(self, function_context, all_interactions, graph, entry_point_node_id, app_path, desired_test_path):
+    def generate_test_prompt(self, function_context, serialized_context, graph, entry_point_node_id, app_path):
+        # Extract detailed inputs and outputs for the endpoint
         entry_point_data = graph.graph.nodes[entry_point_node_id]
-
-        import_statement = self.generate_import_statement(app_path, desired_test_path)
-
-        # Load the pytest template from the resources directory
-        template_path = os.path.join(os.path.dirname(__file__), "resources", "pytest_template.py")
-        with open(template_path, "r") as file:
-            pytest_template = file.read()
-
-        # Generate mock instructions only for high-certainty interactions
-        mock_instructions = "\n".join(
-            interaction["mock_idea"]
-            for interaction in all_interactions
-            if interaction.get("certainty", "low") == "high" and "mock_idea" in interaction
-        )
-
-        # TODO, implement a way to find where fastAPI app is located
-        # TODO, assume you have an input (desired_test_location)
-        # TODO, construct path to import fastAPI app from desired_test_location
-
-        function_implementation = entry_point_data.get("github_function_implementation", {}).get(
-            "content", "Not available"
-        )
-        full_function_content = entry_point_data.get(
-            "github_file_content", "Function content not available"
-        )  # Retrieve full function content
         arguments = json.dumps(entry_point_data.get("arguments", {}), indent=2)
         expected_output = entry_point_data["return_value"].get("json_serialized", "No output captured")
-        context_details = "\n".join(function_context)
+
+        mock_instructions = "\n".join(
+            f"Use the data from '{file_path}' to mock interactions as described in the file."
+            for file_path in serialized_context
+        )
 
         prompt = (
-            f"Write a complete pytest file for testing the FastAPI app located at '{app_path}', specifically the endpoint "
-            f"'{entry_point_data['function']}' defined in '{entry_point_data['github_file_path']}' at line {entry_point_data['github_function_implementation']['start_line']}. "
-            f"Import the application using: {import_statement}\n"
-            f"Full function implementation from the source file:\n{full_function_content}\n"
-            f"Function implementation snippet:\n{function_implementation}\n"
-            f"Arguments: {arguments}\n"
-            f"Expected output: {expected_output}\n"
-            "Context and external interactions:\n"
-            f"{context_details}\n"
-            "External interactions to mock (follow the instructions below):\n"
-            f"{mock_instructions}\n"
-            f"\n# --- Start of the Pytest Template ---\n{pytest_template}\n# --- End of the Pytest Template ---\n"
-            "Include necessary imports, setup any needed fixtures, and define test functions with assertions based on the expected output. "
-            "Ensure the test file adheres to Python best practices and pytest conventions."
+            f"Create a pytest file to test the endpoint '{entry_point_data['function']}' at '{entry_point_data['github_file_path']}' using the FastAPI app at '{app_path}'.\n"
+            "Here are the details needed for the test:\n"
+            f"Arguments (Expected Input): {arguments}\n"
+            f"Expected Output: {expected_output}\n"
+            f"Mocking instructions (refer to the JSON files specified for details):\n{mock_instructions}\n"
+            "Ensure to include necessary imports, setup fixtures as needed, and define test functions with assertions based on the expected outputs. "
+            "Follow Python best practices and pytest conventions."
         )
 
         return prompt
