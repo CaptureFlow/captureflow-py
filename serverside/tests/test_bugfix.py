@@ -18,34 +18,20 @@ mock_redis_connection = MagicMock()
 
 
 # Patch the methods with mock data
-@patch(
-    "src.utils.integrations.github_integration.RepoHelper._build_index",
-    return_value=mock_build_index_data,
-)
+@patch("src.utils.integrations.github_integration.RepoHelper._build_index", return_value=mock_build_index_data)
 @patch(
     "src.utils.integrations.github_integration.RepoHelper.enrich_node_with_github_data",
     return_value=mock_enrich_node_data,
 )
-@patch(
-    "src.utils.integrations.github_integration.RepoHelper._get_repo_by_url",
-    return_value=None,
-)
-@patch(
-    "src.utils.integrations.redis_integration.get_redis_connection",
-    return_value=mock_redis_connection,
-)
+@patch("src.utils.integrations.github_integration.RepoHelper._get_repo_by_url", return_value=None)
+@patch("src.utils.integrations.redis_integration.get_redis_connection", return_value=mock_redis_connection)
 def test_generate_bugfix_mr(
-    mock_build_index,
-    mock_enrich_node_with_github_data,
-    mock_get_repo_by_url,
-    mock_redis_connection,
+    mock_build_index, mock_enrich_node_with_github_data, mock_get_repo_by_url, mock_redis_connection
 ):
     from src.server import app
 
     client = TestClient(app)
-    response = client.post(
-        "/api/v1/merge-requests/bugfix?repository-url=https://github.com/CaptureFlow/captureflow-py"
-    )
+    response = client.post("/api/v1/merge-requests/bugfix?repository-url=https://github.com/CaptureFlow/captureflow-py")
 
     print("RESPONSE = ", response.json())
 
