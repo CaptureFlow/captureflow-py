@@ -1,0 +1,19 @@
+{
+    "arguments": {
+        "args": [],
+        "kwargs": {
+            "self": {
+                "python_type": "<class 'src.utils.integrations.github_integration.RepoHelper'>",
+                "json_serialized": "<src.utils.integrations.github_integration.RepoHelper object at 0x7f7174183c10>"
+            },
+            "node": {
+                "python_type": "<class 'dict'>",
+                "json_serialized": "{\"function\": \"add_transaction\", \"file_line\": \"/Users/nikitakutc/projects/captureflow-py/clientside/examples/fastapi/utilz.py:49\", \"tag\": \"INTERNAL\", \"arguments\": {\"args\": [], \"kwargs\": {\"user_id\": {\"python_type\": \"<class 'str'>\", \"json_serialized\": \"\\\"user123\\\"\"}, \"company_id\": {\"python_type\": \"<class 'str'>\", \"json_serialized\": \"\\\"company456\\\"\"}, \"amount\": {\"python_type\": \"<class 'float'>\", \"json_serialized\": \"100.0\"}, \"score\": {\"python_type\": \"<class 'float'>\", \"json_serialized\": \"0.2\"}}}, \"return_value\": {\"python_type\": \"<class 'NoneType'>\", \"json_serialized\": \"null\"}, \"exception\": false}"
+            }
+        }
+    },
+    "return_value": {
+        "python_type": "<class 'NoneType'>",
+        "json_serialized": "null"
+    }
+}
