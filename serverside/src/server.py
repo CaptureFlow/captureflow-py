@@ -1,12 +1,19 @@
+import logging
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, Query
+from captureflow.tracer import Tracer
 from pydantic import BaseModel, Field, parse_obj_as, validator
 
 from src.utils.exception_patcher import ExceptionPatcher
 from src.utils.integrations.redis_integration import get_redis_connection
 from src.utils.test_creator import TestCoverageCreator
 
+
+tracer = Tracer(
+    repo_url="https://github.com/CaptureFlow/captureflow-py",
+    server_base_url="http://0.0.0.0:8000",
+)
 app = FastAPI()
 redis = get_redis_connection()
 
@@ -90,14 +97,13 @@ async def store_trace_log(trace_data: TraceData, repo_url: str = Query(..., alia
     redis.set(trace_log_key, trace_data_json)
     return {"message": "Trace log saved successfully"}
 
-
 # Process accumulated traces and create bugfix MR if needed
 @app.post("/api/v1/merge-requests/bugfix")
+@tracer.trace_endpoint
 async def generate_bugfix_mr(repo_url: str = Query(..., alias="repository-url")):
     orchestrator = ExceptionPatcher(redis_client=redis, repo_url=repo_url)
     orchestrator.run()
     return {"message": "MR generation process started successfully"}
-
 
 @app.post("/api/v1/test-coverage/create")
 async def generate_test_coverage(repo_url: str = Query(..., alias="repository-url")):
