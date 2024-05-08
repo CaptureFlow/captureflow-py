@@ -16,15 +16,19 @@ Integrate our tracing tool into your application to capture and send execution t
 
 ## Roadmap / Current Status
 
-- [x] **Pipeline Setup**: Implement an end-to-end pipeline including tracer and server. The tracer outputs JSONs for Python execution frames, and the server stores traces, enriching them with GitHub metadata.
-- [x] **MR Generation Heuristic**: Focused on methods as the unit of optimization for the initial heuristic approach to generating Merge Requests.
-- [x] **Automated Code Fixes**: Utilizes exception traces and execution context for proposing targeted fixes for exceptions.
-- [ ] **Benchmarking & Testing**:
-    - [x] More sophisticated benchmarking scenarios are under development.
-- [ ] **Test Case Extension**: Extend existing test cases using accumulated trace data for more realistic mock data and scenarios.
-- [ ] **Add support for open LLMs**.
-- [ ] **RAG Pipeline Improvement**: Enhance the Retrieve and Generate (RAG) pipeline with similar module fetching from code embeddings, ctags implementation, and standardized code parsing methods.
-
+- [x] **Pipeline Setup**: Implement an end-to-end pipeline, including a tracer and server. The tracer outputs JSONs for Python execution frames, while the server stores and enriches traces with GitHub metadata.
+- [x] **MR Generation Heuristic**: Focuses on methods as the unit of optimization for the initial heuristic approach to generating Merge Requests.
+- [x] **Automated Code Fixes**: Utilizes exception traces and the execution context to propose targeted fixes for exceptions.
+- [x] **Test Case Extension**: Extend existing test cases using accumulated trace data to generate more realistic mock data and scenarios.
+    - [ ] Client-side: Introduce trace sampling that respects infrequently used functions.
+    - [ ] Client-side: Enable re-creation of non-serializable objects via pickling.
+    - [ ] Server-side: Transition from FastAPI to a generic WSGI/ASGI approach.
+    - [ ] Server-side: Facilitate on-demand creation of bottom-up unit tests and explore potential real-time IDE synergies.
+- [x] **Tests as Acceptance Criteria for RAG**:
+    - [x] Auto-bugfix
+    - [ ] Code refactoring / Library migrations / Safe deletion of unused code
+    - [ ] Validate arbitrary code changes through observation-based unit tests.
+- [ ] **Add Support for Open LLMs**.
 
 
 ## Setup
