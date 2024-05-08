@@ -5,7 +5,6 @@ import inspect
 import json
 import linecache
 import logging
-import httpx
 import os
 import sys
 import traceback
@@ -14,6 +13,7 @@ from datetime import datetime
 from functools import wraps
 from typing import Any, Callable, Dict
 
+import httpx
 import requests
 
 STDLIB_PATH = "/lib/python"
@@ -62,7 +62,7 @@ class Tracer:
             return result
 
         return wrapper
-    
+
     async def _send_trace_log(self, context: Dict[str, Any]) -> None:
         """Asynchronously send trace log to the specified endpoint."""
         # If in development, optionally save the trace log locally
@@ -70,7 +70,7 @@ class Tracer:
             log_filename = f"trace_{context['invocation_id']}.json"
             with open(log_filename, "w") as f:
                 json.dump(context, f, indent=4)
-        
+
         try:
             # Perform the POST request asynchronously
             async with httpx.AsyncClient() as client:
@@ -78,7 +78,7 @@ class Tracer:
                     self.trace_endpoint_url,
                     params={"repository-url": self.repo_url},
                     json=context,
-                    headers={"Content-Type": "application/json"}
+                    headers={"Content-Type": "application/json"},
                 )
                 if response.status_code != 200:
                     logger.error(f"CaptureFlow server responded with {response.status_code}: {response.text}")
@@ -136,7 +136,7 @@ class Tracer:
         tag = self._get_file_tag(file_name)
 
         # Skip STDLIB, LIBRARY, and everything that does not start with '/' (like /usr/app/src etc)
-        if tag == "STDLIB" or tag == "LIBRARY" or not file_name.startswith('/'):
+        if tag == "STDLIB" or tag == "LIBRARY" or not file_name.startswith("/"):
             return lambda frame, event, arg: self._trace_function_calls(frame, event, arg, context)
 
         # Skip lines for now

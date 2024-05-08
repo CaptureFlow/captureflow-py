@@ -3,7 +3,6 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-
 from src.utils.call_graph import CallGraph
 
 
@@ -14,18 +13,18 @@ def disable_network_access():
         mock_create_conn.side_effect = Exception("Network access not allowed during tests!")
         yield
 
+
 @pytest.fixture
 def mock_docker_executor():
-    from src.utils.docker_executor import PytestOutput, TestCoverageItem
     from pathlib import Path
+
+    from src.utils.docker_executor import PytestOutput, TestCoverageItem
 
     with patch("src.utils.docker_executor.DockerExecutor") as MockDocker:
         mock_executor = MockDocker.return_value
         mock_executor.execute_with_new_files.return_value = PytestOutput(
-            test_coverage={
-                Path("/path/to/function.py"): TestCoverageItem(coverage=80, missing_lines = [1, 2, 3, 4])
-            },
-            pytest_raw_output="test_output"
+            test_coverage={Path("/path/to/function.py"): TestCoverageItem(coverage=80, missing_lines=[1, 2, 3, 4])},
+            pytest_raw_output="test_output",
         )
         yield mock_executor
 
@@ -92,17 +91,19 @@ def mock_repo_helper(github_data_mapping):
     mock_instance = Mock()
     mock_instance._get_repo_by_url.return_value = Mock(html_url="http://sample.repo.url")
     mock_instance.enrich_callgraph_with_github_context.side_effect = mock_enrich_callgraph_with_github_context
-    mock_instance.get_fastapi_endpoints.return_value = [{'file_path': '/path/to/function.py', 'function': 'calculate_average', 'line_start': 10, 'line_end': 20}]
+    mock_instance.get_fastapi_endpoints.return_value = [
+        {"file_path": "/path/to/function.py", "function": "calculate_average", "line_start": 10, "line_end": 20}
+    ]
 
     return mock_instance
 
 
 def test_test_coverage_creator_run(mock_redis_client, mock_openai_helper, mock_repo_helper, mock_docker_executor):
     from src.utils.test_creator import TestCoverageCreator
-    
-    with patch("src.utils.test_creator.RepoHelper", return_value=mock_repo_helper), \
-         patch("src.utils.test_creator.OpenAIHelper", return_value=mock_openai_helper), \
-         patch("src.utils.docker_executor.DockerExecutor", return_value=mock_docker_executor):
+
+    with patch("src.utils.test_creator.RepoHelper", return_value=mock_repo_helper), patch(
+        "src.utils.test_creator.OpenAIHelper", return_value=mock_openai_helper
+    ), patch("src.utils.docker_executor.DockerExecutor", return_value=mock_docker_executor):
 
         test_creator = TestCoverageCreator(redis_client=mock_redis_client, repo_url="http://sample.repo.url")
         test_creator.run()

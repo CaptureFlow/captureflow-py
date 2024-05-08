@@ -4,7 +4,6 @@ import os
 from typing import Any, Dict, List, Optional
 
 from redis import Redis
-
 from src.utils.call_graph import CallGraph
 from src.utils.docker_executor import DockerExecutor
 from src.utils.integrations.github_integration import RepoHelper
@@ -31,12 +30,9 @@ class TestCoverageCreator:
             graph.compress_graph()  # Compress the graph to simplify complex call chains
             self.repo_helper.enrich_callgraph_with_github_context(graph)
             endpoint_invoked = self.determine_invoked_endpoint(graph)
-            
-            print("ENDPOINT INVOKED = ", endpoint_invoked)
 
             if endpoint_invoked:
                 app_path = self.repo_helper.identify_app_for_endpoint(endpoint_invoked)
-                print("APP PATH = ", app_path)
                 if app_path:
                     self.process_endpoint(graph, endpoint_invoked, app_path)
                 else:
@@ -52,15 +48,23 @@ class TestCoverageCreator:
         entry_point_node_id = self.select_function_to_cover(graph, endpoint_coverage)
         if entry_point_node_id:
             all_interactions, function_context = [], []
-            self.analyze_graph_for_interactions_and_context(graph, entry_point_node_id, all_interactions, function_context)
+            self.analyze_graph_for_interactions_and_context(
+                graph, entry_point_node_id, all_interactions, function_context
+            )
             serialized_context = self.serialize_interactions(all_interactions)
             desired_test_path = "serverside/tests/test_app.py"
-            prompt = self.generate_test_prompt(function_context, serialized_context, graph, entry_point_node_id, app_path)
-            pytest_full_code, files_dict, test_diff = self.generate_and_test_pytest_code(prompt, entry_point_node_id, initial_test_output, desired_test_path)
+            prompt = self.generate_test_prompt(
+                function_context, serialized_context, graph, entry_point_node_id, app_path
+            )
+            pytest_full_code, files_dict, test_diff = self.generate_and_test_pytest_code(
+                prompt, entry_point_node_id, initial_test_output, desired_test_path
+            )
 
             if pytest_full_code:
                 test_file_name = f"serverside/tests/test_{graph.graph.nodes[entry_point_node_id]['function'].replace(' ', '_').lower()}.py"
-                self.repo_helper.create_pull_request_with_test(test_file_name, pytest_full_code, graph.graph.nodes[entry_point_node_id]["function"])
+                self.repo_helper.create_pull_request_with_test(
+                    test_file_name, pytest_full_code, graph.graph.nodes[entry_point_node_id]["function"]
+                )
                 # self.repo_helper.create_pull_request_with_multiple_tests(files_dict, target_endpoint, f"test", test_diff)
             else:
                 logger.error("Failed to generate or validate pytest code.")
@@ -76,8 +80,10 @@ class TestCoverageCreator:
                 log_data = json.loads(log_data_json.decode("utf-8"))
                 graphs.append(CallGraph(json.dumps(log_data)))
         return graphs
-    
-    def generate_and_test_pytest_code(self, prompt, entry_point_node_id, initial_test_output, desired_test_path="serverside/tests/test_app.py"):
+
+    def generate_and_test_pytest_code(
+        self, prompt, entry_point_node_id, initial_test_output, desired_test_path="serverside/tests/test_app.py"
+    ):
         gpt_response = self.gpt_helper.call_chatgpt(prompt)
         pytest_full_code = self.gpt_helper.extract_first_code_block(gpt_response)
 
@@ -102,7 +108,6 @@ class TestCoverageCreator:
             logger.error("Failed to generate valid pytest code from GPT response.")
             return None
 
-    
     def determine_invoked_endpoint(self, graph):
         """
         Determine which endpoint was invoked based on the call graph. Assumes each node might have information
@@ -110,18 +115,21 @@ class TestCoverageCreator:
         """
         for node_id, data in graph.graph.nodes(data=True):
             for endpoint in self.repo_helper.get_fastapi_endpoints():
-                if data.get('github_file_path') == endpoint['file_path'] and data.get('function') == endpoint['function']:
+                if (
+                    data.get("github_file_path") == endpoint["file_path"]
+                    and data.get("function") == endpoint["function"]
+                ):
                     return endpoint
         return None
 
     def calculate_endpoint_coverage(self, test_output):
-        """ Calculate and return coverage data for each endpoint, ordered by uncovered percentage. """
+        """Calculate and return coverage data for each endpoint, ordered by uncovered percentage."""
         endpoints = self.repo_helper.get_fastapi_endpoints()
         endpoint_coverage = []
 
         for endpoint in endpoints:
             uncovered_lines = self.calculate_uncovered_lines(endpoint, test_output)
-            total_lines = endpoint['line_end'] - endpoint['line_start'] + 1
+            total_lines = endpoint["line_end"] - endpoint["line_start"] + 1
             coverage_percent = 100 - (uncovered_lines / total_lines * 100)
             endpoint_coverage.append((endpoint, coverage_percent))
 
@@ -129,17 +137,23 @@ class TestCoverageCreator:
         return endpoint_coverage
 
     def calculate_uncovered_lines(self, endpoint, test_output):
-        """ Calculate the number of uncovered lines for a given endpoint based on test output. """
+        """Calculate the number of uncovered lines for a given endpoint based on test output."""
         uncovered_lines = 0
         for file_path, coverage_data in test_output.test_coverage.items():
-            if file_path == endpoint['file_path']:
-                uncovered_lines += len([line for line in coverage_data.missing_lines if endpoint['line_start'] <= line <= endpoint['line_end']])
+            if file_path == endpoint["file_path"]:
+                uncovered_lines += len(
+                    [
+                        line
+                        for line in coverage_data.missing_lines
+                        if endpoint["line_start"] <= line <= endpoint["line_end"]
+                    ]
+                )
         return uncovered_lines
-    
+
     def select_function_to_cover(self, graph: CallGraph, endpoint_coverage) -> Optional[str]:
-        """ Select the least covered FastAPI endpoint function from the graph. """
+        """Select the least covered FastAPI endpoint function from the graph."""
         least_covered = None
-        min_coverage = float('inf')
+        min_coverage = float("inf")
         for endpoint, coverage in endpoint_coverage:
             for node_id, data in graph.graph.nodes(data=True):
                 if data.get("function") == endpoint["function"] and coverage < min_coverage:
@@ -147,9 +161,9 @@ class TestCoverageCreator:
                     min_coverage = coverage
 
         return least_covered
-    
+
     def compare_test_coverage(self, initial_output, modified_output):
-        """ Compare initial and modified test coverage and log the differences. """
+        """Compare initial and modified test coverage and log the differences."""
         coverage_diff = {}
         for file_path, initial_data in initial_output.test_coverage.items():
             if file_path in modified_output.test_coverage:
@@ -157,10 +171,10 @@ class TestCoverageCreator:
                 previous = initial_data.coverage
                 new = new_data.coverage
                 change = new - previous
-                coverage_diff[file_path] = {'previous': previous, 'new': new, 'change': change}
+                coverage_diff[file_path] = {"previous": previous, "new": new, "change": change}
                 logger.info(f"Coverage for {file_path}: {previous}% -> {new}% (Change: {change}%)")
             else:
-                coverage_diff[file_path] = {'previous': initial_data.coverage, 'new': 'N/A', 'change': 'N/A'}
+                coverage_diff[file_path] = {"previous": initial_data.coverage, "new": "N/A", "change": "N/A"}
 
         return coverage_diff
 
@@ -202,26 +216,34 @@ class TestCoverageCreator:
         except (ValueError, json.JSONDecodeError) as e:
             logger.error(f"Failed to decode interaction response from ChatGPT: {e}")
             return []
-        
-    def analyze_graph_for_interactions_and_context(self, graph: CallGraph, node_id: str, interactions: List[Dict[str, Any]], function_context: List[str]):
+
+    def analyze_graph_for_interactions_and_context(
+        self, graph: CallGraph, node_id: str, interactions: List[Dict[str, Any]], function_context: List[str]
+    ):
         node_data = graph.graph.nodes[node_id]
         if node_data.get("is_node_compressed", False):
             # Handle compressed node specially, recommending mocking of entire module or section
-            interactions.append({
-                "function": node_data.get('function', 'Unknown Function'),  # Provide a default function name if not available
-                "type": "COMPRESSED_NODE",
-                "details": f"Mock entire module due to complexity and interdependencies in {node_data.get('function', 'Unknown Function')}.",
-                "mock_idea": "Use MagicMock or create a fixture to simulate behavior.",
-                "certainty": "high",
-                "arguments": node_data.get('arguments', {}),  # Capture arguments from node data
-                "return_value": node_data.get('return_value', {})  # Capture return value from node data
-            })
-        elif "github_function_implementation" in node_data and node_data["github_function_implementation"] != "not_found":
+            interactions.append(
+                {
+                    "function": node_data.get(
+                        "function", "Unknown Function"
+                    ),  # Provide a default function name if not available
+                    "type": "COMPRESSED_NODE",
+                    "details": f"Mock entire module due to complexity and interdependencies in {node_data.get('function', 'Unknown Function')}.",
+                    "mock_idea": "Use MagicMock or create a fixture to simulate behavior.",
+                    "certainty": "high",
+                    "arguments": node_data.get("arguments", {}),  # Capture arguments from node data
+                    "return_value": node_data.get("return_value", {}),  # Capture return value from node data
+                }
+            )
+        elif (
+            "github_function_implementation" in node_data and node_data["github_function_implementation"] != "not_found"
+        ):
             node_interactions = self.analyze_external_interactions_with_chatgpt(node_data)
             for interaction in node_interactions:
-                interaction['function'] = node_data.get('function', 'Unknown Function')  # Ensure function key exists
-                interaction['arguments'] = node_data.get('arguments', {})  # Capture arguments from node data
-                interaction['return_value'] = node_data.get('return_value', {})  # Capture return value from node data
+                interaction["function"] = node_data.get("function", "Unknown Function")  # Ensure function key exists
+                interaction["arguments"] = node_data.get("arguments", {})  # Capture arguments from node data
+                interaction["return_value"] = node_data.get("return_value", {})  # Capture return value from node data
             interactions.extend(node_interactions)
 
         for successor in graph.graph.successors(node_id):
@@ -233,27 +255,26 @@ class TestCoverageCreator:
         root_module = os.path.basename(os.path.dirname(test_dir))
 
         # Get the relative path from the test directory to the app file, excluding the root module from the path
-        relative_path_from_root = os.path.relpath(app_path, start=os.path.join(test_dir, '..'))
+        relative_path_from_root = os.path.relpath(app_path, start=os.path.join(test_dir, ".."))
 
         # Normalize the path for use in an import statement
-        normalized_import_path = relative_path_from_root.replace(os.path.sep, '.').rstrip('.py')
+        normalized_import_path = relative_path_from_root.replace(os.path.sep, ".").rstrip(".py")
 
         # Form the import statement
         import_statement = f"from {root_module}.{normalized_import_path} import your_fastapi_instance"
 
         return import_statement
-    
+
     def serialize_interactions(self, interactions):
-        """ Serialize interaction details for mocking to JSON files. """
+        """Serialize interaction details for mocking to JSON files."""
         serialized_data_paths = []
         for interaction in interactions:
             file_name = f"{interaction['function']}_mock_data.json"
             file_path = os.path.join(self.interactions_dir, file_name)
-            with open(file_path, 'w') as file:
-                json.dump({
-                    "arguments": interaction["arguments"],
-                    "return_value": interaction["return_value"]
-                }, file, indent=4)
+            with open(file_path, "w") as file:
+                json.dump(
+                    {"arguments": interaction["arguments"], "return_value": interaction["return_value"]}, file, indent=4
+                )
             serialized_data_paths.append(file_path)
         return serialized_data_paths
 

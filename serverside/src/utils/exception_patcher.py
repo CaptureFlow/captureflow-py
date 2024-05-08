@@ -3,7 +3,6 @@ import logging
 from typing import Any, Dict, List
 
 from redis import Redis
-
 from src.utils.call_graph import CallGraph
 from src.utils.integrations.github_integration import RepoHelper
 from src.utils.integrations.openai_integration import OpenAIHelper
@@ -40,7 +39,6 @@ class ExceptionPatcher:
             else:
                 logger.info(f"Found a graph that contained unhandled exception chain {exception_chains}")
 
-            
             for exception_chain in exception_chains:
                 context = self.fetch_exception_context(graph, exception_chain)
                 prompt = self.generate_fix_prompt_based_on_context(context)
@@ -56,7 +54,7 @@ class ExceptionPatcher:
                         matched_node_ids = graph.find_node_by_fname(function_name)
                         if matched_node_ids:
                             matches_node_id = matched_node_ids[0]
-                            
+
                             self.repo_helper.create_pull_request_with_new_function(
                                 graph.graph.nodes[matches_node_id],
                                 context,

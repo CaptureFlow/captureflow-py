@@ -1,12 +1,11 @@
 import ast
 import base64
 import logging
-import uuid
 import os
+import uuid
 from typing import Any, Dict, List, Optional
 
 from github import GithubIntegration, Repository
-
 from src.config import GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY_BASE64
 from src.utils.call_graph import CallGraph
 from src.utils.integrations.openai_integration import OpenAIHelper
@@ -43,23 +42,27 @@ class DefinitionVisitor(ast.NodeVisitor):
         for decorator in node.decorator_list:
             if isinstance(decorator, ast.Call) and isinstance(decorator.func, ast.Attribute):
                 # TODO, app() is just a pattern for WSGI/ASGI apps, instead we need to inspect actual object instance
-                if isinstance(decorator.func.value, ast.Name) and decorator.func.value.id == 'app':
-                    self.fastapi_endpoints.append({
-                        "type": decorator.func.attr,  # HTTP method type, e.g., get, post
-                        "function": node.name,
-                        "file_path": self.filepath,
-                        "line_start": node.lineno,
-                        "line_end": node.end_lineno if hasattr(node, 'end_lineno') else node.lineno,
-                    })
+                if isinstance(decorator.func.value, ast.Name) and decorator.func.value.id == "app":
+                    self.fastapi_endpoints.append(
+                        {
+                            "type": decorator.func.attr,  # HTTP method type, e.g., get, post
+                            "function": node.name,
+                            "file_path": self.filepath,
+                            "line_start": node.lineno,
+                            "line_end": node.end_lineno if hasattr(node, "end_lineno") else node.lineno,
+                        }
+                    )
 
     def visit_Call(self, node):
         # Identify the FastAPI() constructor invocation
-        if isinstance(node.func, ast.Name) and node.func.id == 'FastAPI':
-            self.fastapi_app_definitions.append({
-                "file_path": self.filepath,
-                "line_start": node.lineno,
-                "line_end": node.end_lineno if hasattr(node, 'end_lineno') else node.lineno
-            })
+        if isinstance(node.func, ast.Name) and node.func.id == "FastAPI":
+            self.fastapi_app_definitions.append(
+                {
+                    "file_path": self.filepath,
+                    "line_start": node.lineno,
+                    "line_end": node.end_lineno if hasattr(node, "end_lineno") else node.lineno,
+                }
+            )
         self.generic_visit(node)
 
 
@@ -148,18 +151,18 @@ class RepoHelper:
 
     def lookup_index(self, symbol_name: str, symbol_type: str) -> Optional[Dict[str, Any]]:
         return self.index.get(symbol_type, {}).get(symbol_name)
-    
+
     def get_fastapi_app(self) -> List[Dict[str, Any]]:
         """Return the path of the FastAPI app if available."""
         apps_info = self.index.get("fastapi_apps")
         if apps_info:
             return apps_info
         return None
-    
+
     def get_fastapi_endpoints(self) -> List[Dict[str, Any]]:
         """
         Retrieve all FastAPI endpoint definitions from the index.
-        
+
         Returns:
             List[Dict[str, Any]]: A list of dictionaries where each dictionary contains
             details about an endpoint such as the HTTP method, function name,
@@ -175,17 +178,17 @@ class RepoHelper:
         Simple heuristic to determine which FastAPI app a given endpoint might belong to based on directory structure.
         TODO: Identify app/endpoint during clientside registration and rely on that
         """
-        endpoint_file = endpoint_info['file_path']
+        endpoint_file = endpoint_info["file_path"]
         app_definitions = self.get_fastapi_app()
         likely_app = None
         longest_match = 0
 
         for app in app_definitions:
             # Calculate the longest common path prefix
-            common_prefix = os.path.commonprefix([endpoint_file, app['file_path']])
+            common_prefix = os.path.commonprefix([endpoint_file, app["file_path"]])
             if len(common_prefix) > longest_match:
                 longest_match = len(common_prefix)
-                likely_app = app['file_path']
+                likely_app = app["file_path"]
 
         return likely_app
 
@@ -333,7 +336,9 @@ class RepoHelper:
         pr = self.gh_repo.create_pull(title=pr_title, body=pr_body, head=new_branch_name, base="main")
         logger.info(f"Pull request created: {pr.html_url}")
 
-    def create_pull_request_with_multiple_tests(self, target_endpoint: str, files_dict: dict, branch_name_suffix: str, coverage_diff: dict):
+    def create_pull_request_with_multiple_tests(
+        self, target_endpoint: str, files_dict: dict, branch_name_suffix: str, coverage_diff: dict
+    ):
         """
         Creates a new pull request with multiple test files in the 'captureflow_tests/' directory.
 
@@ -360,8 +365,10 @@ class RepoHelper:
         markdown_table += "| File | Previous Coverage (%) | New Coverage (%) | Change (%) |\n"
         markdown_table += "|------|-----------------------|------------------|------------|\n"
         for file, stats in coverage_diff.items():
-            if stats['change'] > 0:  # Highlight only files with coverage growth
-                markdown_table += f"| {file} | {stats['previous']:.2f} | {stats['new']:.2f} | **+{stats['change']:.2f}** |\n"
+            if stats["change"] > 0:  # Highlight only files with coverage growth
+                markdown_table += (
+                    f"| {file} | {stats['previous']:.2f} | {stats['new']:.2f} | **+{stats['change']:.2f}** |\n"
+                )
         markdown_table += "---"
 
         # Create a pull request from the new branch to the main branch
@@ -370,4 +377,3 @@ class RepoHelper:
 
         pr = self.gh_repo.create_pull(title=pr_title, body=pr_body, head=new_branch_name, base="main")
         logger.info(f"Pull request created: {pr.html_url}")
-

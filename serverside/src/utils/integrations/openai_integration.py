@@ -4,7 +4,6 @@ import re
 from typing import Optional
 
 from openai import OpenAI
-
 from src.config import OPENAI_KEY
 
 logger = logging.getLogger(__name__)
