@@ -14,6 +14,7 @@ tracer = Tracer(
     repo_url="https://github.com/CaptureFlow/captureflow-py",
     server_base_url="http://0.0.0.0:8000",
 )
+
 app = FastAPI()
 redis = get_redis_connection()
 

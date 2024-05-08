@@ -56,11 +56,12 @@ class TestCoverageCreator:
             serialized_context = self.serialize_interactions(all_interactions)
             desired_test_path = "serverside/tests/test_app.py"
             prompt = self.generate_test_prompt(function_context, serialized_context, graph, entry_point_node_id, app_path)
-            pytest_full_code = self.generate_and_test_pytest_code(prompt, entry_point_node_id, initial_test_output, desired_test_path)
+            pytest_full_code, files_dict, test_diff = self.generate_and_test_pytest_code(prompt, entry_point_node_id, initial_test_output, desired_test_path)
 
             if pytest_full_code:
                 test_file_name = f"serverside/tests/test_{graph.graph.nodes[entry_point_node_id]['function'].replace(' ', '_').lower()}.py"
                 self.repo_helper.create_pull_request_with_test(test_file_name, pytest_full_code, graph.graph.nodes[entry_point_node_id]["function"])
+                # self.repo_helper.create_pull_request_with_multiple_tests(files_dict, target_endpoint, f"test", test_diff)
             else:
                 logger.error("Failed to generate or validate pytest code.")
         else:
@@ -79,17 +80,24 @@ class TestCoverageCreator:
     def generate_and_test_pytest_code(self, prompt, entry_point_node_id, initial_test_output, desired_test_path="serverside/tests/test_app.py"):
         gpt_response = self.gpt_helper.call_chatgpt(prompt)
         pytest_full_code = self.gpt_helper.extract_first_code_block(gpt_response)
+
         if pytest_full_code:
             logger.info(f"Generated full pytest code for function {entry_point_node_id}:\n{pytest_full_code}")
-            new_test_files = {desired_test_path: pytest_full_code}
+            new_test_files = {
+                # TODO: add test scripts
+                # TODO: add assets
+            }
             modified_test_output = self.docker_executor.execute_with_new_files(new_test_files)
+            # TODO: re-iterate with GPT in case of trivial errors
+            # Re-iterate, until acceptance criteria is met
+            # pytest_raw_output = modified_test_output
 
             # After updating the tests, compare the coverage to see the improvements
             test_diff = self.compare_test_coverage(initial_test_output, modified_test_output)
             logger.info(f"Test coverage difference: {test_diff}")
 
             # Return the full pytest code for additional actions (like creating files or PRs)
-            return pytest_full_code
+            return pytest_full_code, new_test_files, test_diff
         else:
             logger.error("Failed to generate valid pytest code from GPT response.")
             return None
@@ -180,7 +188,6 @@ class TestCoverageCreator:
             f"```python\n{function_implementation}\n```"
         )
 
-        # Call ChatGPT and get the response
         response = self.gpt_helper.call_chatgpt(prompt)
         interactions = self.parse_interaction_response(response)
         return interactions

@@ -332,3 +332,42 @@ class RepoHelper:
 
         pr = self.gh_repo.create_pull(title=pr_title, body=pr_body, head=new_branch_name, base="main")
         logger.info(f"Pull request created: {pr.html_url}")
+
+    def create_pull_request_with_multiple_tests(self, target_endpoint: str, files_dict: dict, branch_name_suffix: str, coverage_diff: dict):
+        """
+        Creates a new pull request with multiple test files in the 'captureflow_tests/' directory.
+
+        Args:
+            files_dict (dict): Dictionary with file paths as keys and file content as values.
+            branch_name_suffix (str): A suffix for the branch name to ensure it is unique.
+        """
+        # Create a new branch for this update
+        new_branch_name = f"cf-tests-{branch_name_suffix}-{uuid.uuid4().hex}"
+        base_sha = self.gh_repo.get_branch("main").commit.sha
+        self.gh_repo.create_git_ref(ref=f"refs/heads/{new_branch_name}", sha=base_sha)
+
+        # Create each test file on the new branch
+        for file_path, file_content in files_dict.items():
+            test_file_path = f"{file_path}"
+            if ".py" in file_path:
+                commit_message = f"Add test {file_path}"
+            elif ".json" in file_path or ".pickle" in file_path:
+                commit_message = f"Add cf-asset {file_path}"
+            self.gh_repo.create_file(test_file_path, commit_message, file_content, branch=new_branch_name)
+
+        # Create a markdown table from the coverage difference
+        markdown_table = "### Test Coverage Difference\n\n"
+        markdown_table += "| File | Previous Coverage (%) | New Coverage (%) | Change (%) |\n"
+        markdown_table += "|------|-----------------------|------------------|------------|\n"
+        for file, stats in coverage_diff.items():
+            if stats['change'] > 0:  # Highlight only files with coverage growth
+                markdown_table += f"| {file} | {stats['previous']:.2f} | {stats['new']:.2f} | **+{stats['change']:.2f}** |\n"
+        markdown_table += "---"
+
+        # Create a pull request from the new branch to the main branch
+        pr_title = f"CaptureFlow: add tests for {target_endpoint}"
+        pr_body = f"This pull request adds new test file to improve the test coverage of the repository. Below is the summary of test coverage improvements:\n\n{markdown_table}"
+
+        pr = self.gh_repo.create_pull(title=pr_title, body=pr_body, head=new_branch_name, base="main")
+        logger.info(f"Pull request created: {pr.html_url}")
+

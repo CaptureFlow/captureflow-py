@@ -74,14 +74,12 @@ class Tracer:
         try:
             # Perform the POST request asynchronously
             async with httpx.AsyncClient() as client:
-                logger.error("WE ARE SENDING REQUEST YYEEE")
                 response = await client.post(
                     self.trace_endpoint_url,
                     params={"repository-url": self.repo_url},
                     json=context,
                     headers={"Content-Type": "application/json"}
                 )
-                logger.error("WE GOT RESPONSE YYEEE")
                 if response.status_code != 200:
                     logger.error(f"CaptureFlow server responded with {response.status_code}: {response.text}")
         except Exception as e:
