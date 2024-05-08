@@ -1,11 +1,14 @@
 # captureflow-py
 
-CaptureFlow combines Application Monitoring with power of LLMs, to ship you merge requests that are guaranteed to work in production.
+CaptureFlow combines Application Monitoring with power of LLMs, to ship you Pull Requests that are guaranteed to work in production.
 
-Deployed applications are already rich with embedded context**. By utilizing production [traces](https://gist.github.com/NickKuts/f390d377906aa666cd759232b0d8ed43), we can unlock new approaches for:
+Deployed applications are already rich with embedded context. By utilizing production traces, CaptureFlow can start saving you time:
 
-1. Automated integration / unit test generation. [MR](https://github.com/CaptureFlow/captureflow-py/pull/62)
-1. Automated bug fixes in response to exceptions. [MR](https://github.com/CaptureFlow/captureflow-py/pull/21)
+1. Is your app's test coverage lacking or behaviour is unclear? Improve it with CaptureFlow tests
+   - -> automated integration / unit test generation: [MR](https://github.com/CaptureFlow/captureflow-py/pull/62)
+
+2. Save debugging time by starting with a Pull Request that fixes issues and doesn't introduce new regressions, all verified by the aforementioned unit tests
+   - -> automated bug fixes in response to exceptions: [MR](https://github.com/CaptureFlow/captureflow-py/pull/21)
 
 **NOTE:** This is not yet ready for production use and it will degrade your application's performance. It presents an end-to-end pipeline that can be optimized by balancing tracing verbosity with the impact it can provide. For more details, check the [clientside/README](https://github.com/CaptureFlow/captureflow-py/blob/main/clientside/README.md).
 
