@@ -4,8 +4,8 @@ import os
 from typing import Any, Dict, List, Optional
 
 from redis import Redis
-
 from src.utils.call_graph import CallGraph
+from src.utils.docker_executor import DockerExecutor
 from src.utils.integrations.github_integration import RepoHelper
 from src.utils.integrations.openai_integration import OpenAIHelper
 
@@ -19,38 +19,57 @@ class TestCoverageCreator:
         self.repo_url = repo_url
         self.gpt_helper = OpenAIHelper()
         self.repo_helper = RepoHelper(repo_url)
+        self.docker_executor = DockerExecutor(repo_url)
+        self.interactions_dir = "interactions"  # Directory to store interaction data
+        os.makedirs(self.interactions_dir, exist_ok=True)
 
     def run(self):
         graphs = self.build_graphs_from_redis()
-        for graph in graphs:
-            self.repo_helper.enrich_callgraph_with_github_context(graph)
-            entry_point_node_id = self.select_function_to_cover(graph)
-            if entry_point_node_id is None:
-                logger.info("No entry point function was selected for coverage.")
-                continue
 
-            all_interactions = []  # Stores GPT-friendly info regarding what interactions are likely external (DBs/APIs)
-            function_context = (
-                []
-            )  # Stores GPT-friendly info regarding what CallGraph nodes are doing (implementation, filename, etc)
+        for graph in graphs:
+            graph.compress_graph()  # Compress the graph to simplify complex call chains
+            self.repo_helper.enrich_callgraph_with_github_context(graph)
+            endpoint_invoked = self.determine_invoked_endpoint(graph)
+
+            if endpoint_invoked:
+                app_path = self.repo_helper.identify_app_for_endpoint(endpoint_invoked)
+                if app_path:
+                    self.process_endpoint(graph, endpoint_invoked, app_path)
+                else:
+                    logger.error(f"App path could not be determined for endpoint {endpoint_invoked['function']}")
+            else:
+                logger.info("No endpoint was clearly invoked in this trace.")
+
+    def process_endpoint(self, graph, endpoint_invoked, app_path):
+        logger.info(f"Processing endpoint {endpoint_invoked['function']} in app at {app_path}")
+        initial_test_output = self.docker_executor.execute_with_new_files({})
+        endpoint_coverage = self.calculate_endpoint_coverage(initial_test_output)
+
+        entry_point_node_id = self.select_function_to_cover(graph, endpoint_coverage)
+        if entry_point_node_id:
+            all_interactions, function_context = [], []
             self.analyze_graph_for_interactions_and_context(
                 graph, entry_point_node_id, all_interactions, function_context
             )
-
-            test_prompt = self.generate_test_prompt(function_context, all_interactions, graph, entry_point_node_id)
-            gpt_response = self.gpt_helper.call_chatgpt(test_prompt)
-            pytest_full_code = self.gpt_helper.extract_first_code_block(gpt_response)
+            serialized_context = self.serialize_interactions(all_interactions)
+            desired_test_path = "serverside/tests/test_app.py"
+            prompt = self.generate_test_prompt(
+                function_context, serialized_context, graph, entry_point_node_id, app_path
+            )
+            pytest_full_code, files_dict, test_diff = self.generate_and_test_pytest_code(
+                prompt, entry_point_node_id, initial_test_output, desired_test_path
+            )
 
             if pytest_full_code:
-                logger.info(
-                    f"Generated full pytest code for {graph.graph.nodes[entry_point_node_id]['function']}:\n{pytest_full_code}"
-                )
-                test_file_name = f"captureflow_tests/test_{graph.graph.nodes[entry_point_node_id]['function'].replace(' ', '_').lower()}.py"
+                test_file_name = f"serverside/tests/test_{graph.graph.nodes[entry_point_node_id]['function'].replace(' ', '_').lower()}.py"
                 self.repo_helper.create_pull_request_with_test(
                     test_file_name, pytest_full_code, graph.graph.nodes[entry_point_node_id]["function"]
                 )
+                # self.repo_helper.create_pull_request_with_multiple_tests(files_dict, target_endpoint, f"test", test_diff)
             else:
-                logger.error("Failed to generate valid full pytest code.")
+                logger.error("Failed to generate or validate pytest code.")
+        else:
+            logger.error("No suitable entry point function was selected for coverage improvement.")
 
     def build_graphs_from_redis(self) -> List[CallGraph]:
         graphs = []
@@ -62,13 +81,102 @@ class TestCoverageCreator:
                 graphs.append(CallGraph(json.dumps(log_data)))
         return graphs
 
-    def select_function_to_cover(self, graph: CallGraph) -> Optional[str]:
-        # Select the first non-stdlib node as the entry point for testing.
-        # TODO: Replace with a way to get endpoint
+    def generate_and_test_pytest_code(
+        self, prompt, entry_point_node_id, initial_test_output, desired_test_path="serverside/tests/test_app.py"
+    ):
+        gpt_response = self.gpt_helper.call_chatgpt(prompt)
+        pytest_full_code = self.gpt_helper.extract_first_code_block(gpt_response)
+
+        if pytest_full_code:
+            logger.info(f"Generated full pytest code for function {entry_point_node_id}:\n{pytest_full_code}")
+            new_test_files = {
+                # TODO: add test scripts
+                # TODO: add assets
+            }
+            modified_test_output = self.docker_executor.execute_with_new_files(new_test_files)
+            # TODO: re-iterate with GPT in case of trivial errors
+            # Re-iterate, until acceptance criteria is met
+            # pytest_raw_output = modified_test_output
+
+            # After updating the tests, compare the coverage to see the improvements
+            test_diff = self.compare_test_coverage(initial_test_output, modified_test_output)
+            logger.info(f"Test coverage difference: {test_diff}")
+
+            # Return the full pytest code for additional actions (like creating files or PRs)
+            return pytest_full_code, new_test_files, test_diff
+        else:
+            logger.error("Failed to generate valid pytest code from GPT response.")
+            return None
+
+    def determine_invoked_endpoint(self, graph):
+        """
+        Determine which endpoint was invoked based on the call graph. Assumes each node might have information
+        like 'github_file_path' and function name that can be mapped to known endpoints.
+        """
         for node_id, data in graph.graph.nodes(data=True):
-            if data.get("tag") != "STDLIB":
-                return node_id
+            for endpoint in self.repo_helper.get_fastapi_endpoints():
+                if (
+                    data.get("github_file_path") == endpoint["file_path"]
+                    and data.get("function") == endpoint["function"]
+                ):
+                    return endpoint
         return None
+
+    def calculate_endpoint_coverage(self, test_output):
+        """Calculate and return coverage data for each endpoint, ordered by uncovered percentage."""
+        endpoints = self.repo_helper.get_fastapi_endpoints()
+        endpoint_coverage = []
+
+        for endpoint in endpoints:
+            uncovered_lines = self.calculate_uncovered_lines(endpoint, test_output)
+            total_lines = endpoint["line_end"] - endpoint["line_start"] + 1
+            coverage_percent = 100 - (uncovered_lines / total_lines * 100)
+            endpoint_coverage.append((endpoint, coverage_percent))
+
+        endpoint_coverage.sort(key=lambda x: x[1])  # Sort by coverage percentage
+        return endpoint_coverage
+
+    def calculate_uncovered_lines(self, endpoint, test_output):
+        """Calculate the number of uncovered lines for a given endpoint based on test output."""
+        uncovered_lines = 0
+        for file_path, coverage_data in test_output.test_coverage.items():
+            if file_path == endpoint["file_path"]:
+                uncovered_lines += len(
+                    [
+                        line
+                        for line in coverage_data.missing_lines
+                        if endpoint["line_start"] <= line <= endpoint["line_end"]
+                    ]
+                )
+        return uncovered_lines
+
+    def select_function_to_cover(self, graph: CallGraph, endpoint_coverage) -> Optional[str]:
+        """Select the least covered FastAPI endpoint function from the graph."""
+        least_covered = None
+        min_coverage = float("inf")
+        for endpoint, coverage in endpoint_coverage:
+            for node_id, data in graph.graph.nodes(data=True):
+                if data.get("function") == endpoint["function"] and coverage < min_coverage:
+                    least_covered = node_id
+                    min_coverage = coverage
+
+        return least_covered
+
+    def compare_test_coverage(self, initial_output, modified_output):
+        """Compare initial and modified test coverage and log the differences."""
+        coverage_diff = {}
+        for file_path, initial_data in initial_output.test_coverage.items():
+            if file_path in modified_output.test_coverage:
+                new_data = modified_output.test_coverage[file_path]
+                previous = initial_data.coverage
+                new = new_data.coverage
+                change = new - previous
+                coverage_diff[file_path] = {"previous": previous, "new": new, "change": change}
+                logger.info(f"Coverage for {file_path}: {previous}% -> {new}% (Change: {change}%)")
+            else:
+                coverage_diff[file_path] = {"previous": initial_data.coverage, "new": "N/A", "change": "N/A"}
+
+        return coverage_diff
 
     def analyze_external_interactions_with_chatgpt(self, node_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         function_implementation = node_data.get("github_function_implementation", {}).get("content", "Not available")
@@ -94,7 +202,6 @@ class TestCoverageCreator:
             f"```python\n{function_implementation}\n```"
         )
 
-        # Call ChatGPT and get the response
         response = self.gpt_helper.call_chatgpt(prompt)
         interactions = self.parse_interaction_response(response)
         return interactions
@@ -114,64 +221,82 @@ class TestCoverageCreator:
         self, graph: CallGraph, node_id: str, interactions: List[Dict[str, Any]], function_context: List[str]
     ):
         node_data = graph.graph.nodes[node_id]
-        if (
-            node_data["tag"] == "STDLIB"
-            or "github_function_implementation" not in node_data
-            or node_data["github_function_implementation"] == "not_found"
+        if node_data.get("is_node_compressed", False):
+            # Handle compressed node specially, recommending mocking of entire module or section
+            interactions.append(
+                {
+                    "function": node_data.get(
+                        "function", "Unknown Function"
+                    ),  # Provide a default function name if not available
+                    "type": "COMPRESSED_NODE",
+                    "details": f"Mock entire module due to complexity and interdependencies in {node_data.get('function', 'Unknown Function')}.",
+                    "mock_idea": "Use MagicMock or create a fixture to simulate behavior.",
+                    "certainty": "high",
+                    "arguments": node_data.get("arguments", {}),  # Capture arguments from node data
+                    "return_value": node_data.get("return_value", {}),  # Capture return value from node data
+                }
+            )
+        elif (
+            "github_function_implementation" in node_data and node_data["github_function_implementation"] != "not_found"
         ):
-            return
-
-        node_interactions = self.analyze_external_interactions_with_chatgpt(node_data)
-        interactions.extend(node_interactions)
-
-        function_context.append(
-            f"Function '{node_data['function']}' defined in '{node_data.get('github_file_path', 'unknown')}' at line {node_data.get('github_function_implementation', {}).get('start_line', 'unknown')} with this implementation {node_data.get('github_function_implementation', {}).get('content', 'Not available')} should consider the following details for mocking (if needed at all): {json.dumps(node_interactions)}"
-        )
+            node_interactions = self.analyze_external_interactions_with_chatgpt(node_data)
+            for interaction in node_interactions:
+                interaction["function"] = node_data.get("function", "Unknown Function")  # Ensure function key exists
+                interaction["arguments"] = node_data.get("arguments", {})  # Capture arguments from node data
+                interaction["return_value"] = node_data.get("return_value", {})  # Capture return value from node data
+            interactions.extend(node_interactions)
 
         for successor in graph.graph.successors(node_id):
             self.analyze_graph_for_interactions_and_context(graph, successor, interactions, function_context)
 
-    def generate_test_prompt(self, function_context, all_interactions, graph, entry_point_node_id):
+    def generate_import_statement(self, app_path, desired_test_path):
+        # Define the root module name (folder before 'tests')
+        test_dir = os.path.dirname(desired_test_path)
+        root_module = os.path.basename(os.path.dirname(test_dir))
+
+        # Get the relative path from the test directory to the app file, excluding the root module from the path
+        relative_path_from_root = os.path.relpath(app_path, start=os.path.join(test_dir, ".."))
+
+        # Normalize the path for use in an import statement
+        normalized_import_path = relative_path_from_root.replace(os.path.sep, ".").rstrip(".py")
+
+        # Form the import statement
+        import_statement = f"from {root_module}.{normalized_import_path} import your_fastapi_instance"
+
+        return import_statement
+
+    def serialize_interactions(self, interactions):
+        """Serialize interaction details for mocking to JSON files."""
+        serialized_data_paths = []
+        for interaction in interactions:
+            file_name = f"{interaction['function']}_mock_data.json"
+            file_path = os.path.join(self.interactions_dir, file_name)
+            with open(file_path, "w") as file:
+                json.dump(
+                    {"arguments": interaction["arguments"], "return_value": interaction["return_value"]}, file, indent=4
+                )
+            serialized_data_paths.append(file_path)
+        return serialized_data_paths
+
+    def generate_test_prompt(self, function_context, serialized_context, graph, entry_point_node_id, app_path):
+        # Extract detailed inputs and outputs for the endpoint
         entry_point_data = graph.graph.nodes[entry_point_node_id]
-
-        # Load the pytest template from the resources directory
-        template_path = os.path.join(os.path.dirname(__file__), "resources", "pytest_template.py")
-        with open(template_path, "r") as file:
-            pytest_template = file.read()
-
-        # Generate mock instructions only for high-certainty interactions
-        mock_instructions = "\n".join(
-            interaction["mock_idea"]
-            for interaction in all_interactions
-            if interaction.get("certainty", "low") == "high" and "mock_idea" in interaction
-        )
-
-        function_name = entry_point_data["function"]
-        file_path = entry_point_data.get("github_file_path", "unknown")
-        line_number = entry_point_data.get("github_function_implementation", {}).get("start_line", "unknown")
-        function_implementation = entry_point_data.get("github_function_implementation", {}).get(
-            "content", "Not available"
-        )
-        full_function_content = entry_point_data.get(
-            "github_file_content", "Function content not available"
-        )  # Retrieve full function content
         arguments = json.dumps(entry_point_data.get("arguments", {}), indent=2)
         expected_output = entry_point_data["return_value"].get("json_serialized", "No output captured")
-        context_details = "\n".join(function_context)
+
+        mock_instructions = "\n".join(
+            f"Use the data from '{file_path}' to mock interactions as described in the file."
+            for file_path in serialized_context
+        )
 
         prompt = (
-            f"Write a complete pytest file for testing the WSGI app entry point '{function_name}' defined in '{file_path}' at line {line_number}. "
-            f"Full function implementation from the source file:\n{full_function_content}\n"
-            f"Function implementation snippet:\n{function_implementation}\n"
-            f"Arguments: {arguments}\n"
-            f"Expected output: {expected_output}\n"
-            "Context and external interactions:\n"
-            f"{context_details}\n"
-            "External interactions to mock (follow the instructions below):\n"
-            f"{mock_instructions}\n"
-            f"\n# --- Start of the Pytest Template ---\n{pytest_template}\n# --- End of the Pytest Template ---\n"
-            "Include necessary imports, setup any needed fixtures, and define test functions with assertions based on the expected output. "
-            "Ensure the test file adheres to Python best practices and pytest conventions."
+            f"Create a pytest file to test the endpoint '{entry_point_data['function']}' at '{entry_point_data['github_file_path']}' using the FastAPI app at '{app_path}'.\n"
+            "Here are the details needed for the test:\n"
+            f"Arguments (Expected Input): {arguments}\n"
+            f"Expected Output: {expected_output}\n"
+            f"Mocking instructions (refer to the JSON files specified for details):\n{mock_instructions}\n"
+            "Ensure to include necessary imports, setup fixtures as needed, and define test functions with assertions based on the expected outputs. "
+            "Follow Python best practices and pytest conventions."
         )
 
         return prompt

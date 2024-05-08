@@ -2,7 +2,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from src.utils.call_graph import CallGraph
 
 

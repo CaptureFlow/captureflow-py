@@ -3,7 +3,6 @@ import logging
 from typing import Any, Dict, List
 
 from redis import Redis
-
 from src.utils.call_graph import CallGraph
 from src.utils.integrations.github_integration import RepoHelper
 from src.utils.integrations.openai_integration import OpenAIHelper
@@ -30,6 +29,7 @@ class ExceptionPatcher:
         #       + input_valuess
         #   + M child node levels for context
         #       + input_values
+
         for graph in graphs:
             exception_chains = self.select_exception_sequences(graph)
 
@@ -40,12 +40,9 @@ class ExceptionPatcher:
                 logger.info(f"Found a graph that contained unhandled exception chain {exception_chains}")
 
             for exception_chain in exception_chains:
-
                 context = self.fetch_exception_context(graph, exception_chain)
-
                 prompt = self.generate_fix_prompt_based_on_context(context)
                 gpt_response = self.gpt_helper.call_chatgpt(prompt)
-
                 try:
                     json_str = self.extract_json_simple(gpt_response)
                     if json_str:

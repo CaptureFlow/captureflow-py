@@ -13,6 +13,7 @@ from datetime import datetime
 from functools import wraps
 from typing import Any, Callable, Dict
 
+import httpx
 import requests
 
 STDLIB_PATH = "/lib/python"
@@ -56,29 +57,33 @@ class Tracer:
                 context["output"] = {"result": self._serialize_variable(result)}
             finally:
                 sys.settrace(None)
-                self._send_trace_log(context)
+                await self._send_trace_log(context)
 
             return result
 
         return wrapper
 
-    def _send_trace_log(self, context: Dict[str, Any]) -> None:
-        if os.environ.get("CAPTUREFLOW_DEV_SERVER") == "true":
+    async def _send_trace_log(self, context: Dict[str, Any]) -> None:
+        """Asynchronously send trace log to the specified endpoint."""
+        # If in development, optionally save the trace log locally
+        if os.getenv("CAPTUREFLOW_DEV_SERVER") == "true":
             log_filename = f"trace_{context['invocation_id']}.json"
             with open(log_filename, "w") as f:
                 json.dump(context, f, indent=4)
 
         try:
-            response = requests.post(
-                self.trace_endpoint_url,
-                params={"repository-url": self.repo_url},  # TODO: move param to HTTP body
-                json=context,
-                headers={"Content-Type": "application/json"},
-            )
-            if response.status_code != 200:
-                logger.info(f"CaptureFlow server responded: {response.status_code}")
+            # Perform the POST request asynchronously
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    self.trace_endpoint_url,
+                    params={"repository-url": self.repo_url},
+                    json=context,
+                    headers={"Content-Type": "application/json"},
+                )
+                if response.status_code != 200:
+                    logger.error(f"CaptureFlow server responded with {response.status_code}: {response.text}")
         except Exception as e:
-            logger.info(f"Exception during logging: {e}")
+            logger.error(f"Exception during logging: {e}")
 
     def _serialize_variable(self, value: Any) -> Dict[str, Any]:
         try:
@@ -129,6 +134,15 @@ class Tracer:
         func_name, file_name, line_no = code.co_name, code.co_filename, frame.f_lineno
 
         tag = self._get_file_tag(file_name)
+
+        # Skip STDLIB, LIBRARY, and everything that does not start with '/' (like /usr/app/src etc)
+        if tag == "STDLIB" or tag == "LIBRARY" or not file_name.startswith("/"):
+            return lambda frame, event, arg: self._trace_function_calls(frame, event, arg, context)
+
+        # Skip lines for now
+        if event == "line":
+            return lambda frame, event, arg: self._trace_function_calls(frame, event, arg, context)
+
         caller_id = context["call_stack"][-1]["id"] if context["call_stack"] else None
 
         call_id = str(uuid.uuid4())

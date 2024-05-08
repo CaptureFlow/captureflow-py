@@ -1,5 +1,4 @@
 import redis
-
 from src.config import REDIS_URL
 
 
