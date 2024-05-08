@@ -1,8 +1,11 @@
 # captureflow-py
 
-Leverage LLMs for maintaining and improving your existing repositories. Software maintenance consumes a significant portion of dev time, yet **deployed applications are already rich with embedded context**.
+CaptureFlow combines Application Monitoring with power of LLMs, to ship you merge requests that are guaranteed to work in production.
 
-By utilizing traces from production applications, we can unlock new approaches for automated bug fixes in response to exceptions. For an example, see this [MR](https://github.com/CaptureFlow/captureflow-py/pull/21) and [sample verbose trace](https://gist.github.com/NickKuts/f390d377906aa666cd759232b0d8ed43).
+Deployed applications are already rich with embedded context**. By utilizing production [traces](https://gist.github.com/NickKuts/f390d377906aa666cd759232b0d8ed43), we can unlock new approaches for:
+
+1. Automated integration / unit test generation. [MR](https://github.com/CaptureFlow/captureflow-py/pull/62)
+1. Automated bug fixes in response to exceptions. [MR](https://github.com/CaptureFlow/captureflow-py/pull/21)
 
 **NOTE:** This is not yet ready for production use and it will degrade your application's performance. It presents an end-to-end pipeline that can be optimized by balancing tracing verbosity with the impact it can provide. For more details, check the [clientside/README](https://github.com/CaptureFlow/captureflow-py/blob/main/clientside/README.md).
 
@@ -10,7 +13,7 @@ By utilizing traces from production applications, we can unlock new approaches f
 
 ![Alt text](./assets/main-chart.svg)
 
-Integrate our tracing tool into your application to capture and send execution traces to the server. When traces contain unhandled exceptions, the server analyzes them and automatically generates MR accompanied by a change reasoning.
+CaptureFlow generates unit tests based on observations from your production app and uses them as acceptance criteria. This ensures LLMs can reliably solve end-to-end maintenance tasks, allowing you to merge changes safely without the need to verify each line extensively.
 
 **Support is currently limited to Python, OpenAI API, and GitHub.**
 
@@ -52,6 +55,8 @@ def process_data(request):
     response = do_stuff(request)
     ...
 ```
+
+And... you're almost ready to go: you need to deploy `serverside` by yourself (for now).
 
 Please check [clientside/README](https://github.com/CaptureFlow/captureflow-py/blob/main/clientside/README.md). 
 
