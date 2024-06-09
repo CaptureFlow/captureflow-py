@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "captureflow-agent"
+version = "0.0.10"
+description = "The CaptureFlow Tracer is a Python package crafted for in-depth tracing of function calls within Python applications. Its primary function is to capture and relay execution data to the CaptureFlow server-side system for decision making."
+authors = ["Nick Kutz <me@nikitakuts.com>"]
+readme = "README.md"
+packages = [{include = "captureflow"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+opentelemetry-api = "^1.25.0"
+opentelemetry-instrumentation = "^0.46b0"
+opentelemetry-sdk = "^1.25.0"
+python-dotenv = "1.0.1"
+opentelemetry-exporter-otlp = "^1.25.0"
+opentelemetry-instrumentation-fastapi = "^0.46b0"
+opentelemetry-instrumentation-requests = "^0.46b0"
+
+[tool.poetry.dev-dependencies]
+fastapi = "^0.111.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.plugins."opentelemetry_distro"]
+distro = "captureflow.distro:CaptureFlowDistro"
