@@ -20,7 +20,7 @@ def _instrument_fastapi(tracer_provider: TracerProvider):
         def client_response_hook(span: FastAPISpan, message: dict):
             if span and span.is_recording():
                 if "body" in message:
-                    span.set_attribute("http.response.body", decode_body(message["body"]))
+                    span.set_attribute("http.response.body", _decode_body(message["body"]))
 
         FastAPIInstrumentor().instrument(
             client_response_hook=client_response_hook,
