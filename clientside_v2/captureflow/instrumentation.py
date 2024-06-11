@@ -90,7 +90,7 @@ def _instrument_httpx(tracer_provider: TracerProvider):
                 span.set_attribute("http.response.status_code", response.status_code)
                 span.set_attribute("http.response.headers", str(response.headers))
                 body: httpx.AsyncResponseStream = response.stream # AsyncResponseStream
-                # pass ???
+                # TODO: how to decode stream and keep it usable?
  
         # Do we actually need sync hooks?
         HTTPXClientInstrumentor().instrument(
@@ -110,7 +110,35 @@ def _instrument_flask(tracer_provider: TracerProvider):
 
 def _instrument_sqlalchemy(tracer_provider: TracerProvider):
     try:
+        import sqlalchemy
         from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+
+        # Instrument SQLAlchemy
+        SQLAlchemyInstrumentor().instrument(tracer_provider=tracer_provider)
+
+        def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+            # Start a new span for SQL execution
+            span = tracer_provider.get_tracer(__name__).start_span(name="SQL Execute")
+            if span.is_recording():
+                span.set_attribute("db.statement", statement)
+                span.set_attribute("db.parameters", str(parameters))
+            context._span = span
+
+        def after_cursor_execute(conn, cursor, statement, parameters, context, executemany) -> None:
+            # End the span after execution
+            span = getattr(context, "_span", None)
+            if span:
+                # TODO: how to decode cursor and keep it usable?
+                span.end()
+
+        sqlalchemy.event.listen(sqlalchemy.engine.Engine, "before_cursor_execute", before_cursor_execute)
+        sqlalchemy.event.listen(sqlalchemy.engine.Engine, "after_cursor_execute", after_cursor_execute)
+    except ImportError as e:
+        pass
+
+def _instrument_dbapi(tracer_provider: TracerProvider):
+    try:
+        from opentelemetry.instrumentation.dbapi import DatabaseApiIntegration
         pass
     except ImportError as e:
         pass
@@ -139,6 +167,7 @@ def apply_instrumentation(tracer_provider: TracerProvider):
     _instrument_httpx(tracer_provider)
 
     # Database interactions
+    _instrument_dbapi(tracer_provider)
     _instrument_sqlalchemy(tracer_provider)
     _instrument_sqlite3(tracer_provider)
 
