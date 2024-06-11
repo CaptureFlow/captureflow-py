@@ -19,6 +19,9 @@ opentelemetry-instrumentation-httpx = "^0.46b0"
 opentelemetry-instrumentation-flask = "^0.46b0"
 opentelemetry-instrumentation-sqlalchemy = "^0.46b0"
 opentelemetry-instrumentation-sqlite3 = "^0.46b0"
+SQLAlchemy = "^2.0.30"
+opentelemetry-instrumentation-dbapi = "^0.46b0"
+wrapt = "^1.16.0"
 
 [tool.poetry.dev-dependencies]
 fastapi = "^0.111.0"
