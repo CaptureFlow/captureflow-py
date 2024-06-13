@@ -1,25 +1,40 @@
 # captureflow-py
 
-Leverage the deep context embedded in your deployed app to fuel LLMs, turning boring maintenance tasks into an AI-enhanced evolution, all while keeping a human in the loop.
+CaptureFlow combines Application Monitoring with power of LLMs, to ship you Pull Requests that are guaranteed to work in production.
 
-- **Context-Driven Code Enhancement**: Improve your code quality by leveraging the deep contextual insights provided by LLM agents observing traces from production.
-- **Trace-Based Test Creation & Auto-Debugging:** Transform traces into a robust foundation for generating tests and automating bug fix implementation.
-- **Execution Graph "Replays" as new way of validating suggestions:** Use traces to simulate specific parts of the execution graph, ensuring the validity of suggestions and mitigating the risk of hallucinations.
+Deployed applications are already rich with embedded context. By utilizing production traces, CaptureFlow can start saving you time:
 
-## Project timeline
+1. Is your app's test coverage lacking or behaviour is unclear? Improve it with CaptureFlow tests
+   - -> automated integration / unit test generation: [MR](https://github.com/CaptureFlow/captureflow-py/pull/62)
 
-| No. | Task                                                                                                      | State       |
-|-----|-----------------------------------------------------------------------------------------------------------|-------------|
-| 1   | Implement end-to-end pipeline: tracer and server.                                                         |    ✅     |
-| 1.1 | Tracer outputs JSONs that represent Python execution frames.                                              | ✅        |
-| 1.2 | Server stores incoming traces and able to enrich execution graph with GitHub metadata, such as function implementation. | ✅        |
-| 2   | First heuristic method for MR generation. Only focus on method as optimization unit.                      | ✅ |
-| 3   | First heuristic method for LLM-based MR validation.                                                       | ✅ |
-| 4   | Improve RAG pipeline for code-generation.                                                                 |       🔨     |
-| 4.1 | Send more relevant modules than just parent_function and child_functions; Implement ctags and more standardized methods of code parsing. | 🔨        |
-| 5   | Auto bug-fix based on 'exception' traces                                                      | 📝   |
-| 6   | Attempt to extend existing test suite. Focus on integratin test <-> trace data "synergy".                                                                          |      📝       |
-| 6.1 | Must be do-able to join execution graph during test execution with acquired traces. Build system can be probably re-created using CI/CD configs? What is easy?                               | 📝        |
+2. Save debugging time by starting with a Pull Request that fixes issues and doesn't introduce new regressions, all verified by the aforementioned unit tests
+   - -> automated bug fixes in response to exceptions: [MR](https://github.com/CaptureFlow/captureflow-py/pull/21)
+
+**NOTE:** This is not yet ready for production use and it will degrade your application's performance. It presents an end-to-end pipeline that can be optimized by balancing tracing verbosity with the impact it can provide. For more details, check the [clientside/README](https://github.com/CaptureFlow/captureflow-py/blob/main/clientside/README.md).
+
+## Main components
+
+![Alt text](./assets/main-chart.svg)
+
+CaptureFlow generates unit tests based on observations from your production app and uses them as acceptance criteria. This ensures LLMs can reliably solve end-to-end maintenance tasks, allowing you to merge changes safely without the need to verify each line extensively.
+
+**Support is currently limited to Python, OpenAI API, and GitHub.**
+
+## Roadmap / Current Status
+
+- [x] **Pipeline Setup**: Implement an end-to-end pipeline, including a tracer and server. The tracer outputs JSONs for Python execution frames, while the server stores and enriches traces with GitHub metadata.
+- [x] **MR Generation Heuristic**: Focuses on methods as the unit of optimization for the initial heuristic approach to generating Merge Requests.
+- [x] **Automated Code Fixes**: Utilizes exception traces and the execution context to propose targeted fixes for exceptions.
+- [x] **Test Case Extension**: Extend existing test cases using accumulated trace data to generate more realistic mock data and scenarios.
+    - [ ] Client-side: Introduce trace sampling that respects infrequently used functions.
+    - [ ] Client-side: Enable re-creation of non-serializable objects via pickling.
+    - [ ] Server-side: Transition from FastAPI to a generic WSGI/ASGI approach.
+    - [ ] Server-side: Facilitate on-demand creation of bottom-up unit tests and explore potential real-time IDE synergies.
+- [x] **Tests as Acceptance Criteria for RAG**:
+    - [x] Auto-bugfix
+    - [ ] Code refactoring / Library migrations / Safe deletion of unused code
+    - [ ] Validate arbitrary code changes through observation-based unit tests.
+- [ ] **Add Support for Open LLMs**.
 
 
 ## Setup
@@ -44,6 +59,10 @@ def process_data(request):
     ...
 ```
 
+And... you're almost ready to go: you need to deploy `serverside` by yourself (for now).
+
+Please check [clientside/README](https://github.com/CaptureFlow/captureflow-py/blob/main/clientside/README.md). 
+
 #### Serverside
 
 You will need to deploy `fastapi` app together with `redis` instance.
@@ -51,3 +70,9 @@ You will need to deploy `fastapi` app together with `redis` instance.
 ```sh
 docker compose up --build
 ```
+
+Please check [serverside/README](https://github.com/CaptureFlow/captureflow-py/blob/main/serverside/README.md).
+
+## Contributing
+
+No structure yet, feel free to join [discord](https://discord.gg/9VVqZBFt).

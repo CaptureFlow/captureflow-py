@@ -1,0 +1,626 @@
+{
+    "invocation_id": "c19e34a0-cfd2-4a48-9002-6d531f057abf",
+    "timestamp": "2024-03-30T19:08:35.003034",
+    "endpoint": "calculate_average",
+    "input": {
+        "args": [],
+        "kwargs": {}
+    },
+    "execution_trace": [
+        {
+            "id": "36196a6a-f66d-41c2-abd3-5062e74ed40e",
+            "timestamp": "2024-03-30T19:08:35.003063",
+            "event": "call",
+            "function": "iscoroutinefunction",
+            "caller_id": null,
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/coroutines.py",
+            "line": 21,
+            "source_line": "def iscoroutinefunction(func):",
+            "tag": "STDLIB",
+            "arguments": {
+                "args": [],
+                "kwargs": {
+                    "func": {
+                        "python_type": "<class 'function'>",
+                        "json_serialized": "<function calculate_average at 0x10c669b20>"
+                    }
+                }
+            },
+            "return_value": {
+                "python_type": "<class 'bool'>",
+                "json_serialized": "false"
+            }
+        },
+        {
+            "id": "13c74e6e-0634-4001-885c-7770088ebc4a",
+            "timestamp": "2024-03-30T19:08:35.003121",
+            "event": "line",
+            "function": "iscoroutinefunction",
+            "caller_id": "36196a6a-f66d-41c2-abd3-5062e74ed40e",
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/coroutines.py",
+            "line": 23,
+            "source_line": "return (inspect.iscoroutinefunction(func) or",
+            "tag": "STDLIB"
+        },
+        {
+            "id": "c015c3d5-66e0-4849-871b-4c02b2deb457",
+            "timestamp": "2024-03-30T19:08:35.003137",
+            "event": "call",
+            "function": "iscoroutinefunction",
+            "caller_id": "36196a6a-f66d-41c2-abd3-5062e74ed40e",
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/inspect.py",
+            "line": 409,
+            "source_line": "def iscoroutinefunction(obj):",
+            "tag": "STDLIB",
+            "arguments": {
+                "args": [],
+                "kwargs": {
+                    "obj": {
+                        "python_type": "<class 'function'>",
+                        "json_serialized": "<function calculate_average at 0x10c669b20>"
+                    }
+                }
+            },
+            "return_value": {
+                "python_type": "<class 'bool'>",
+                "json_serialized": "false"
+            }
+        },
+        {
+            "id": "216779fc-dace-45d7-9736-4a796108c7cb",
+            "timestamp": "2024-03-30T19:08:35.003171",
+            "event": "line",
+            "function": "iscoroutinefunction",
+            "caller_id": "c015c3d5-66e0-4849-871b-4c02b2deb457",
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/inspect.py",
+            "line": 414,
+            "source_line": "return _has_code_flag(obj, CO_COROUTINE)",
+            "tag": "STDLIB"
+        },
+        {
+            "id": "baf89e73-3a6b-4586-b8b4-61f3766ac423",
+            "timestamp": "2024-03-30T19:08:35.003184",
+            "event": "call",
+            "function": "_has_code_flag",
+            "caller_id": "c015c3d5-66e0-4849-871b-4c02b2deb457",
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/inspect.py",
+            "line": 391,
+            "source_line": "def _has_code_flag(f, flag):",
+            "tag": "STDLIB",
+            "arguments": {
+                "args": [],
+                "kwargs": {
+                    "f": {
+                        "python_type": "<class 'function'>",
+                        "json_serialized": "<function calculate_average at 0x10c669b20>"
+                    },
+                    "flag": {
+                        "python_type": "<class 'int'>",
+                        "json_serialized": "128"
+                    }
+                }
+            },
+            "return_value": {
+                "python_type": "<class 'bool'>",
+                "json_serialized": "false"
+            }
+        },
+        {
+            "id": "cc2cda60-e1cb-403b-b839-28db478f27d6",
+            "timestamp": "2024-03-30T19:08:35.003219",
+            "event": "line",
+            "function": "_has_code_flag",
+            "caller_id": "baf89e73-3a6b-4586-b8b4-61f3766ac423",
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/inspect.py",
+            "line": 395,
+            "source_line": "while ismethod(f):",
+            "tag": "STDLIB"
+        },
+        {
+            "id": "f87dbff3-c341-4a8c-80e1-0fe03d813eb3",
+            "timestamp": "2024-03-30T19:08:35.003232",
+            "event": "call",
+            "function": "ismethod",
+            "caller_id": "baf89e73-3a6b-4586-b8b4-61f3766ac423",
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/inspect.py",
+            "line": 300,
+            "source_line": "def ismethod(object):",
+            "tag": "STDLIB",
+            "arguments": {
+                "args": [],
+                "kwargs": {
+                    "object": {
+                        "python_type": "<class 'function'>",
+                        "json_serialized": "<function calculate_average at 0x10c669b20>"
+                    }
+                }
+            },
+            "return_value": {
+                "python_type": "<class 'bool'>",
+                "json_serialized": "false"
+            }
+        },
+        {
+            "id": "e82de3ad-3e6d-4896-94ba-e599c0981580",
+            "timestamp": "2024-03-30T19:08:35.003263",
+            "event": "line",
+            "function": "ismethod",
+            "caller_id": "f87dbff3-c341-4a8c-80e1-0fe03d813eb3",
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/inspect.py",
+            "line": 308,
+            "source_line": "return isinstance(object, types.MethodType)",
+            "tag": "STDLIB"
+        },
+        {
+            "id": "c63fe056-1b1f-4c81-9689-67de65cb5a84",
+            "timestamp": "2024-03-30T19:08:35.003276",
+            "event": "return",
+            "function": "ismethod",
+            "caller_id": "f87dbff3-c341-4a8c-80e1-0fe03d813eb3",
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/inspect.py",
+            "line": 308,
+            "source_line": "return isinstance(object, types.MethodType)",
+            "tag": "STDLIB",
+            "return_value": {
+                "python_type": "<class 'bool'>",
+                "json_serialized": "false"
+            }
+        },
+        {
+            "id": "637aa4fa-6410-4ef4-a909-937a5efced8c",
+            "timestamp": "2024-03-30T19:08:35.003299",
+            "event": "line",
+            "function": "_has_code_flag",
+            "caller_id": "baf89e73-3a6b-4586-b8b4-61f3766ac423",
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/inspect.py",
+            "line": 397,
+            "source_line": "f = functools._unwrap_partial(f)",
+            "tag": "STDLIB"
+        },
+        {
+            "id": "29e8f652-bf65-46e5-aae3-6ffe640fc246",
+            "timestamp": "2024-03-30T19:08:35.003312",
+            "event": "call",
+            "function": "_unwrap_partial",
+            "caller_id": "baf89e73-3a6b-4586-b8b4-61f3766ac423",
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/functools.py",
+            "line": 421,
+            "source_line": "def _unwrap_partial(func):",
+            "tag": "STDLIB",
+            "arguments": {
+                "args": [],
+                "kwargs": {
+                    "func": {
+                        "python_type": "<class 'function'>",
+                        "json_serialized": "<function calculate_average at 0x10c669b20>"
+                    }
+                }
+            },
+            "return_value": {
+                "python_type": "<class 'function'>",
+                "json_serialized": "<function calculate_average at 0x10c669b20>"
+            }
+        },
+        {
+            "id": "4ca425cc-23ec-4a1c-8932-82d479802020",
+            "timestamp": "2024-03-30T19:08:35.003342",
+            "event": "line",
+            "function": "_unwrap_partial",
+            "caller_id": "29e8f652-bf65-46e5-aae3-6ffe640fc246",
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/functools.py",
+            "line": 422,
+            "source_line": "while isinstance(func, partial):",
+            "tag": "STDLIB"
+        },
+        {
+            "id": "be30daf2-47af-4719-a910-f027f7cf3d45",
+            "timestamp": "2024-03-30T19:08:35.003354",
+            "event": "line",
+            "function": "_unwrap_partial",
+            "caller_id": "29e8f652-bf65-46e5-aae3-6ffe640fc246",
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/functools.py",
+            "line": 424,
+            "source_line": "return func",
+            "tag": "STDLIB"
+        },
+        {
+            "id": "ecfefa49-f65a-4937-8585-c5033fc003fb",
+            "timestamp": "2024-03-30T19:08:35.003365",
+            "event": "return",
+            "function": "_unwrap_partial",
+            "caller_id": "29e8f652-bf65-46e5-aae3-6ffe640fc246",
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/functools.py",
+            "line": 424,
+            "source_line": "return func",
+            "tag": "STDLIB",
+            "return_value": {
+                "python_type": "<class 'function'>",
+                "json_serialized": "<function calculate_average at 0x10c669b20>"
+            }
+        },
+        {
+            "id": "6f2d10ef-d258-41ab-851c-36095503a0f4",
+            "timestamp": "2024-03-30T19:08:35.003390",
+            "event": "line",
+            "function": "_has_code_flag",
+            "caller_id": "baf89e73-3a6b-4586-b8b4-61f3766ac423",
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/inspect.py",
+            "line": 398,
+            "source_line": "if not (isfunction(f) or _signature_is_functionlike(f)):",
+            "tag": "STDLIB"
+        },
+        {
+            "id": "7fcf6265-ec4b-4dac-908f-f41a11790136",
+            "timestamp": "2024-03-30T19:08:35.003402",
+            "event": "call",
+            "function": "isfunction",
+            "caller_id": "baf89e73-3a6b-4586-b8b4-61f3766ac423",
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/inspect.py",
+            "line": 378,
+            "source_line": "def isfunction(object):",
+            "tag": "STDLIB",
+            "arguments": {
+                "args": [],
+                "kwargs": {
+                    "object": {
+                        "python_type": "<class 'function'>",
+                        "json_serialized": "<function calculate_average at 0x10c669b20>"
+                    }
+                }
+            },
+            "return_value": {
+                "python_type": "<class 'bool'>",
+                "json_serialized": "true"
+            }
+        },
+        {
+            "id": "14b4d362-9ae2-4f7a-b74f-db0a8d2f48a9",
+            "timestamp": "2024-03-30T19:08:35.003426",
+            "event": "line",
+            "function": "isfunction",
+            "caller_id": "7fcf6265-ec4b-4dac-908f-f41a11790136",
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/inspect.py",
+            "line": 389,
+            "source_line": "return isinstance(object, types.FunctionType)",
+            "tag": "STDLIB"
+        },
+        {
+            "id": "037138f8-2241-426c-b344-21acd186d2dc",
+            "timestamp": "2024-03-30T19:08:35.003439",
+            "event": "return",
+            "function": "isfunction",
+            "caller_id": "7fcf6265-ec4b-4dac-908f-f41a11790136",
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/inspect.py",
+            "line": 389,
+            "source_line": "return isinstance(object, types.FunctionType)",
+            "tag": "STDLIB",
+            "return_value": {
+                "python_type": "<class 'bool'>",
+                "json_serialized": "true"
+            }
+        },
+        {
+            "id": "156f50c2-ca0a-46a5-8add-2b4fa41d9e8e",
+            "timestamp": "2024-03-30T19:08:35.003460",
+            "event": "line",
+            "function": "_has_code_flag",
+            "caller_id": "baf89e73-3a6b-4586-b8b4-61f3766ac423",
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/inspect.py",
+            "line": 400,
+            "source_line": "return bool(f.__code__.co_flags & flag)",
+            "tag": "STDLIB"
+        },
+        {
+            "id": "94339ca8-5178-44ac-8a4d-9f4319f88fa2",
+            "timestamp": "2024-03-30T19:08:35.003473",
+            "event": "return",
+            "function": "_has_code_flag",
+            "caller_id": "baf89e73-3a6b-4586-b8b4-61f3766ac423",
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/inspect.py",
+            "line": 400,
+            "source_line": "return bool(f.__code__.co_flags & flag)",
+            "tag": "STDLIB",
+            "return_value": {
+                "python_type": "<class 'bool'>",
+                "json_serialized": "false"
+            }
+        },
+        {
+            "id": "cb072a64-f478-4067-9dac-06c3c592c8b2",
+            "timestamp": "2024-03-30T19:08:35.003497",
+            "event": "return",
+            "function": "iscoroutinefunction",
+            "caller_id": "c015c3d5-66e0-4849-871b-4c02b2deb457",
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/inspect.py",
+            "line": 414,
+            "source_line": "return _has_code_flag(obj, CO_COROUTINE)",
+            "tag": "STDLIB",
+            "return_value": {
+                "python_type": "<class 'bool'>",
+                "json_serialized": "false"
+            }
+        },
+        {
+            "id": "153d1665-23e6-4363-80dd-72b1ca6dd64f",
+            "timestamp": "2024-03-30T19:08:35.003516",
+            "event": "line",
+            "function": "iscoroutinefunction",
+            "caller_id": "36196a6a-f66d-41c2-abd3-5062e74ed40e",
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/coroutines.py",
+            "line": 24,
+            "source_line": "getattr(func, '_is_coroutine', None) is _is_coroutine)",
+            "tag": "STDLIB"
+        },
+        {
+            "id": "cf364f6b-bbf0-4902-b86f-97096e54821e",
+            "timestamp": "2024-03-30T19:08:35.003528",
+            "event": "line",
+            "function": "iscoroutinefunction",
+            "caller_id": "36196a6a-f66d-41c2-abd3-5062e74ed40e",
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/coroutines.py",
+            "line": 23,
+            "source_line": "return (inspect.iscoroutinefunction(func) or",
+            "tag": "STDLIB"
+        },
+        {
+            "id": "1b8eee43-6c89-4757-aa23-4774fa0ad799",
+            "timestamp": "2024-03-30T19:08:35.003540",
+            "event": "return",
+            "function": "iscoroutinefunction",
+            "caller_id": "36196a6a-f66d-41c2-abd3-5062e74ed40e",
+            "file": "/usr/local/Cellar/python@3.11/3.11.7/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/coroutines.py",
+            "line": 23,
+            "source_line": "return (inspect.iscoroutinefunction(func) or",
+            "tag": "STDLIB",
+            "return_value": {
+                "python_type": "<class 'bool'>",
+                "json_serialized": "false"
+            }
+        },
+        {
+            "id": "8a13402c-adee-4cef-915e-492fa4bc58c3",
+            "timestamp": "2024-03-30T19:08:35.003560",
+            "event": "call",
+            "function": "calculate_average",
+            "caller_id": null,
+            "file": "/Users/nikitakutc/projects/captureflow-py/clientside/examples/fastapi/server.py",
+            "line": 19,
+            "source_line": "@app.get(\"/calculate_avg/\")",
+            "tag": "INTERNAL",
+            "arguments": {
+                "args": [],
+                "kwargs": {}
+            },
+            "return_value": {
+                "python_type": "<class 'NoneType'>",
+                "json_serialized": "null"
+            }
+        },
+        {
+            "id": "cc977122-54bd-4bb3-892f-5baf85f49992",
+            "timestamp": "2024-03-30T19:08:35.003581",
+            "event": "line",
+            "function": "calculate_average",
+            "caller_id": "8a13402c-adee-4cef-915e-492fa4bc58c3",
+            "file": "/Users/nikitakutc/projects/captureflow-py/clientside/examples/fastapi/server.py",
+            "line": 23,
+            "source_line": "sample_array = []",
+            "tag": "INTERNAL"
+        },
+        {
+            "id": "49fe900f-6fa9-4306-888e-1892b2b7edbe",
+            "timestamp": "2024-03-30T19:08:35.003593",
+            "event": "line",
+            "function": "calculate_average",
+            "caller_id": "8a13402c-adee-4cef-915e-492fa4bc58c3",
+            "file": "/Users/nikitakutc/projects/captureflow-py/clientside/examples/fastapi/server.py",
+            "line": 24,
+            "source_line": "return {\"message\": \"Calculated average of even numbers\", \"average\": calculate_avg(sample_array)}",
+            "tag": "INTERNAL"
+        },
+        {
+            "id": "738b7737-d7b8-49ea-91e9-66a8e19f63f5",
+            "timestamp": "2024-03-30T19:08:35.003605",
+            "event": "call",
+            "function": "calculate_avg",
+            "caller_id": "8a13402c-adee-4cef-915e-492fa4bc58c3",
+            "file": "/Users/nikitakutc/projects/captureflow-py/clientside/examples/fastapi/utilz.py",
+            "line": 1,
+            "source_line": "def calculate_avg(series):",
+            "tag": "INTERNAL",
+            "arguments": {
+                "args": [],
+                "kwargs": {
+                    "series": {
+                        "python_type": "<class 'list'>",
+                        "json_serialized": "[]"
+                    }
+                }
+            },
+            "return_value": {
+                "python_type": "<class 'NoneType'>",
+                "json_serialized": "null"
+            }
+        },
+        {
+            "id": "a146cd56-433e-48d5-b2f5-da8ddffc27c4",
+            "timestamp": "2024-03-30T19:08:35.003627",
+            "event": "line",
+            "function": "calculate_avg",
+            "caller_id": "738b7737-d7b8-49ea-91e9-66a8e19f63f5",
+            "file": "/Users/nikitakutc/projects/captureflow-py/clientside/examples/fastapi/utilz.py",
+            "line": 2,
+            "source_line": "return calculate_sum(series) / calculate_len(series)",
+            "tag": "INTERNAL"
+        },
+        {
+            "id": "e093a21f-15a4-49be-b05c-8331edab0fc9",
+            "timestamp": "2024-03-30T19:08:35.003638",
+            "event": "call",
+            "function": "calculate_sum",
+            "caller_id": "738b7737-d7b8-49ea-91e9-66a8e19f63f5",
+            "file": "/Users/nikitakutc/projects/captureflow-py/clientside/examples/fastapi/utilz.py",
+            "line": 4,
+            "source_line": "def calculate_sum(series):",
+            "tag": "INTERNAL",
+            "arguments": {
+                "args": [],
+                "kwargs": {
+                    "series": {
+                        "python_type": "<class 'list'>",
+                        "json_serialized": "[]"
+                    }
+                }
+            },
+            "return_value": {
+                "python_type": "<class 'int'>",
+                "json_serialized": "0"
+            }
+        },
+        {
+            "id": "fe8522f3-54ac-4186-a73a-670d87b9a618",
+            "timestamp": "2024-03-30T19:08:35.003662",
+            "event": "line",
+            "function": "calculate_sum",
+            "caller_id": "e093a21f-15a4-49be-b05c-8331edab0fc9",
+            "file": "/Users/nikitakutc/projects/captureflow-py/clientside/examples/fastapi/utilz.py",
+            "line": 5,
+            "source_line": "return sum(series)",
+            "tag": "INTERNAL"
+        },
+        {
+            "id": "b9c3c0ac-8797-464c-8202-fbd8762b4fd2",
+            "timestamp": "2024-03-30T19:08:35.003693",
+            "event": "return",
+            "function": "calculate_sum",
+            "caller_id": "e093a21f-15a4-49be-b05c-8331edab0fc9",
+            "file": "/Users/nikitakutc/projects/captureflow-py/clientside/examples/fastapi/utilz.py",
+            "line": 5,
+            "source_line": "return sum(series)",
+            "tag": "INTERNAL",
+            "return_value": {
+                "python_type": "<class 'int'>",
+                "json_serialized": "0"
+            }
+        },
+        {
+            "id": "0ee97fb3-e107-4de4-a6be-ed4db3a659cf",
+            "timestamp": "2024-03-30T19:08:35.003716",
+            "event": "call",
+            "function": "calculate_len",
+            "caller_id": "738b7737-d7b8-49ea-91e9-66a8e19f63f5",
+            "file": "/Users/nikitakutc/projects/captureflow-py/clientside/examples/fastapi/utilz.py",
+            "line": 7,
+            "source_line": "def calculate_len(series):",
+            "tag": "INTERNAL",
+            "arguments": {
+                "args": [],
+                "kwargs": {
+                    "series": {
+                        "python_type": "<class 'list'>",
+                        "json_serialized": "[]"
+                    }
+                }
+            },
+            "return_value": {
+                "python_type": "<class 'int'>",
+                "json_serialized": "0"
+            }
+        },
+        {
+            "id": "a5f4f932-9e60-4a7f-8f20-2bb01fd771b1",
+            "timestamp": "2024-03-30T19:08:35.003737",
+            "event": "line",
+            "function": "calculate_len",
+            "caller_id": "0ee97fb3-e107-4de4-a6be-ed4db3a659cf",
+            "file": "/Users/nikitakutc/projects/captureflow-py/clientside/examples/fastapi/utilz.py",
+            "line": 8,
+            "source_line": "return len(series)",
+            "tag": "INTERNAL"
+        },
+        {
+            "id": "4e2649b2-2271-45d6-8904-91e1195fa9f4",
+            "timestamp": "2024-03-30T19:08:35.003748",
+            "event": "return",
+            "function": "calculate_len",
+            "caller_id": "0ee97fb3-e107-4de4-a6be-ed4db3a659cf",
+            "file": "/Users/nikitakutc/projects/captureflow-py/clientside/examples/fastapi/utilz.py",
+            "line": 8,
+            "source_line": "return len(series)",
+            "tag": "INTERNAL",
+            "return_value": {
+                "python_type": "<class 'int'>",
+                "json_serialized": "0"
+            }
+        },
+        {
+            "id": "48a20a4c-bebb-4a91-af0f-a817ec844961",
+            "timestamp": "2024-03-30T19:08:35.003768",
+            "event": "exception",
+            "function": "calculate_avg",
+            "caller_id": "738b7737-d7b8-49ea-91e9-66a8e19f63f5",
+            "file": "/Users/nikitakutc/projects/captureflow-py/clientside/examples/fastapi/utilz.py",
+            "line": 2,
+            "source_line": "return calculate_sum(series) / calculate_len(series)",
+            "tag": "INTERNAL",
+            "exception_info": {
+                "type": "ZeroDivisionError",
+                "value": "division by zero",
+                "traceback": [
+                    "  File \"/Users/nikitakutc/projects/captureflow-py/clientside/examples/fastapi/utilz.py\", line 2, in calculate_avg\n    return calculate_sum(series) / calculate_len(series)\n           ~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~\n"
+                ]
+            }
+        },
+        {
+            "id": "79062058-debb-4f14-935e-67340dad8a5f",
+            "timestamp": "2024-03-30T19:08:35.003914",
+            "event": "return",
+            "function": "calculate_avg",
+            "caller_id": "738b7737-d7b8-49ea-91e9-66a8e19f63f5",
+            "file": "/Users/nikitakutc/projects/captureflow-py/clientside/examples/fastapi/utilz.py",
+            "line": 2,
+            "source_line": "return calculate_sum(series) / calculate_len(series)",
+            "tag": "INTERNAL",
+            "return_value": {
+                "python_type": "<class 'NoneType'>",
+                "json_serialized": "null"
+            }
+        },
+        {
+            "id": "92cb0b73-7efa-4fdc-be84-235b2823412c",
+            "timestamp": "2024-03-30T19:08:35.003940",
+            "event": "exception",
+            "function": "calculate_average",
+            "caller_id": "8a13402c-adee-4cef-915e-492fa4bc58c3",
+            "file": "/Users/nikitakutc/projects/captureflow-py/clientside/examples/fastapi/server.py",
+            "line": 24,
+            "source_line": "return {\"message\": \"Calculated average of even numbers\", \"average\": calculate_avg(sample_array)}",
+            "tag": "INTERNAL",
+            "exception_info": {
+                "type": "ZeroDivisionError",
+                "value": "division by zero",
+                "traceback": [
+                    "  File \"/Users/nikitakutc/projects/captureflow-py/clientside/examples/fastapi/server.py\", line 24, in calculate_average\n    return {\"message\": \"Calculated average of even numbers\", \"average\": calculate_avg(sample_array)}\n                                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n",
+                    "  File \"/Users/nikitakutc/projects/captureflow-py/clientside/examples/fastapi/utilz.py\", line 2, in calculate_avg\n    return calculate_sum(series) / calculate_len(series)\n           ~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~\n"
+                ]
+            }
+        },
+        {
+            "id": "6a86261e-11cf-482a-80d5-110b17861b4e",
+            "timestamp": "2024-03-30T19:08:35.004081",
+            "event": "return",
+            "function": "calculate_average",
+            "caller_id": "8a13402c-adee-4cef-915e-492fa4bc58c3",
+            "file": "/Users/nikitakutc/projects/captureflow-py/clientside/examples/fastapi/server.py",
+            "line": 24,
+            "source_line": "return {\"message\": \"Calculated average of even numbers\", \"average\": calculate_avg(sample_array)}",
+            "tag": "INTERNAL",
+            "return_value": {
+                "python_type": "<class 'NoneType'>",
+                "json_serialized": "null"
+            }
+        }
+    ],
+    "log_filename": "temp/calculate_average_trace_c19e34a0-cfd2-4a48-9002-6d531f057abf.json",
+    "call_stack": []
+}

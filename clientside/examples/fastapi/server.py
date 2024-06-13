@@ -1,35 +1,48 @@
-import os
-
-from fastapi import FastAPI
+import utilz
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 
 from captureflow.tracer import Tracer
 
-# Actually makes tracer dump file locally
-os.environ["CAPTUREFLOW_DEV_SERVER"] = "true"
-
 tracer = Tracer(
-    repo_url="https://github.com/DummyUser/DummyRepo",
-    server_base_url="http://127.0.0.1:1337",
+    repo_url="https://github.com/CaptureFlow/captureflow-py",
+    server_base_url="http://127.0.0.1:8000",
 )
 
 app = FastAPI()
 
 
-def calculate_avg(sample_array):
-    return sample_array
+class Transaction(BaseModel):
+    user_id: str
+    company_id: str
+    amount: float
 
 
-@app.get("/")
+@app.on_event("startup")
+async def startup_event():
+    """Initialize the database on startup."""
+    utilz.init_db()
+
+
+@app.post("/score_transaction/")
 @tracer.trace_endpoint
-def calculate_average():
-    sample_array = [1, 2, 3, 5, 6]
-    res = calculate_avg(sample_array)
-    return {"Hello": "World", "average": res}
+async def score_transaction(transaction: Transaction):
+    """
+    Scores a given transaction for fraud potential based on amount similarity to the last 5 transactions for the same company_id.
 
-
-@app.get("/fetch_similar/")
-@tracer.trace_endpoint
-def fetch_similar_array():
-    sample_array = [1, 2, 3, 4]
-    res = calculate_avg(sample_array)
-    return {"Hello": "World", "average": res}
+    ## cURL examples:
+    ```
+    curl -X 'POST' 'http://127.0.0.1:1337/score_transaction/' -H 'accept: application/json' -H 'Content-Type: application/json' -d '{"user_id": "user123", "company_id": "company456", "amount": 100.0}'
+    ```
+    """
+    score = utilz.calculate_score(transaction.user_id, transaction.company_id, transaction.amount)
+    try:
+        utilz.add_transaction(transaction.user_id, transaction.company_id, transaction.amount, score)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    return {
+        "user_id": transaction.user_id,
+        "company_id": transaction.company_id,
+        "amount": transaction.amount,
+        "score": score,
+    }

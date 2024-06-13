@@ -30,27 +30,22 @@ async def test_trace_endpoint_fastapi():
             assert response.json() == {"result": 5}
 
         mock_log.assert_called_once()
-        log_data = mock_log.call_args[0][
-            0
-        ]  # Get the context data passed to _send_trace_log
+        log_data = mock_log.call_args[0][0]  # Get the context data passed to _send_trace_log
 
         assert log_data["endpoint"] == "add"
 
-        # Verify the input parameters were captured correctly
         assert "x" in log_data["input"]["kwargs"] and "y" in log_data["input"]["kwargs"]
-        assert log_data["input"]["kwargs"]["x"]["json_serialized"] == json.dumps(
-            2
-        )  # Use json.dumps for consistency
+        assert log_data["input"]["kwargs"]["x"]["json_serialized"] == json.dumps(2)  # Use json.dumps for consistency
         assert log_data["input"]["kwargs"]["y"]["json_serialized"] == json.dumps(3)
 
-        # Ensure the execution trace contains expected data
         assert len(log_data["execution_trace"]) > 0
         assert log_data["execution_trace"][0]["event"] == "call"
+        assert log_data["output"]["result"]["json_serialized"] == json.dumps({"result": 5})
 
-        # Update output assertion to match the expected serialization format
-        assert log_data["output"]["result"]["json_serialized"] == json.dumps(
-            {"result": 5}
-        )
+        # Additional checks for type information
+        assert log_data["input"]["kwargs"]["x"]["python_type"] == "<class 'int'>"
+        assert log_data["input"]["kwargs"]["y"]["python_type"] == "<class 'int'>"
+        assert log_data["output"]["result"]["python_type"] == "<class 'dict'>"
 
 
 @app.get("/divide/{x}/{y}")
@@ -73,7 +68,9 @@ async def test_trace_endpoint_with_exception():
         assert "x" in log_data["input"]["kwargs"] and "y" in log_data["input"]["kwargs"]
         assert log_data["input"]["kwargs"]["x"]["json_serialized"] == json.dumps(10)
         assert log_data["input"]["kwargs"]["y"]["json_serialized"] == json.dumps(0)
-        assert len(log_data["execution_trace"]) > 0
-        assert any(
-            e["event"] == "exception" for e in log_data["execution_trace"]
-        ), "Exception event not found in the execution trace"
+
+        exception_events = [e for e in log_data["execution_trace"] if e["event"] == "exception"]
+        assert len(exception_events) > 0, "Exception event not found in the execution trace"
+        exception_event = exception_events[0]
+        assert "ZeroDivisionError" in exception_event["exception_info"]["type"], "Expected ZeroDivisionError"
+        assert "division by zero" in exception_event["exception_info"]["value"], "Expected 'division by zero' message"

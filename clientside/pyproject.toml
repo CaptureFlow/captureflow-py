@@ -7,7 +7,7 @@ packages = { find = { where = ["src"], exclude = ["tests", "examples"] } }
 
 [project]
 name = "captureflow-agent"
-version = "0.0.1"
+version = "0.0.9"
 description = "Data collector to unleash LLM power"
 authors = [
     {name = "Nikita Kuts", email = "me@nikitakuts.com"},
@@ -23,6 +23,7 @@ dependencies = [
     "idna>=3.6",
     "requests>=2.31.0",
     "urllib3>=2.2.1",
+    "httpx>=0.27.0",
 ]
 
 [project.urls]
