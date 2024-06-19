@@ -1,14 +1,15 @@
-
 from logging import getLogger
+
 from opentelemetry.instrumentation.distro import BaseDistro
 from opentelemetry.trace import set_tracer_provider
 
-from captureflow.span_processor import FrameInfoSpanProcessor
 from captureflow.instrumentation import apply_instrumentation
 from captureflow.resource import get_resource
+from captureflow.span_processor import FrameInfoSpanProcessor
 from captureflow.tracer_provider import get_tracer_provider
 
 logger = getLogger(__name__)
+
 
 class CaptureFlowDistro(BaseDistro):
     def _configure(self, **kwargs):

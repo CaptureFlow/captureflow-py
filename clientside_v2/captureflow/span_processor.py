@@ -1,32 +1,35 @@
-import captureflow
 import inspect
-import opentelemetry
-
 from logging import getLogger
 from pathlib import Path
 from types import CodeType, FrameType
-from opentelemetry.sdk.trace import Span, ReadableSpan, SpanProcessor
+
+import opentelemetry
+from opentelemetry.sdk.trace import ReadableSpan, Span, SpanProcessor
+
+import captureflow
 
 logger = getLogger(__name__)
 
 # Set up constants for determining user code
-CWD = Path('.').resolve()
+CWD = Path(".").resolve()
 PREFIXES = (
     str(Path(opentelemetry.sdk.trace.__file__).parent.parent.parent.parent),
     str(Path(inspect.__file__).parent),
     str(Path(captureflow.__file__).parent),
 )
 
+
 def get_stack_info_from_frame(frame: FrameType):
     """
     Extract file path, function name, and line number from a frame.
     """
     code = frame.f_code
-    info = {'code.filepath': get_relative_filepath(code.co_filename)}
-    if code.co_name != '<module>':
-        info['code.function'] = code.co_name
-    info['code.lineno'] = frame.f_lineno
+    info = {"code.filepath": get_relative_filepath(code.co_filename)}
+    if code.co_name != "<module>":
+        info["code.function"] = code.co_name
+    info["code.lineno"] = frame.f_lineno
     return info
+
 
 def get_relative_filepath(file: str) -> str:
     """
@@ -38,11 +41,13 @@ def get_relative_filepath(file: str) -> str:
     except ValueError:
         return str(path)
 
+
 def is_user_code(code: CodeType) -> bool:
     """
     Determine if a code object is from user code.
     """
     return not any(str(Path(code.co_filename).absolute()).startswith(prefix) for prefix in PREFIXES)
+
 
 def get_user_stack_info():
     """
@@ -54,6 +59,7 @@ def get_user_stack_info():
             return get_stack_info_from_frame(frame)
         frame = frame.f_back
     return {}
+
 
 class FrameInfoSpanProcessor(SpanProcessor):
     def on_start(self, span: Span, parent_context):

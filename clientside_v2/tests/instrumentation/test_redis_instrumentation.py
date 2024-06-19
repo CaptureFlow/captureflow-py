@@ -8,14 +8,15 @@ import pytest
 import redis
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from captureflow.distro import CaptureFlowDistro
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import get_tracer_provider
 
+from captureflow.distro import CaptureFlowDistro
 
 app = FastAPI()
-redis_client = redis.Redis(host='localhost', port=6379, db=0)
+redis_client = redis.Redis(host="localhost", port=6379, db=0)
+
 
 def perform_redis_operations():
     # Two operations [SET, GET] for test
@@ -23,23 +24,22 @@ def perform_redis_operations():
     value = redis_client.get("test_key")
     return value.decode("utf-8") if value else None
 
+
 @app.get("/")
 async def read_root():
     # Redis operations
     redis_value = perform_redis_operations()
-    return {
-        "message": "Hello World",
-        "redis_value": redis_value
-    }
+    return {"message": "Hello World", "redis_value": redis_value}
 
-@pytest.fixture(scope='module')
+
+@pytest.fixture(scope="module")
 def setup_tracer_and_exporter():
     distro = CaptureFlowDistro()
     distro._configure()
-    
+
     # Retrieve the global tracer provider
     tracer_provider = get_tracer_provider()
-    
+
     # Set up in-memory span exporter
     span_exporter = InMemorySpanExporter()
     span_processor = SimpleSpanProcessor(span_exporter)
@@ -48,15 +48,16 @@ def setup_tracer_and_exporter():
     yield tracer_provider, span_exporter
 
     # Clean up instrumentation
-    from opentelemetry.instrumentation.redis import RedisInstrumentor
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-    from opentelemetry.instrumentation.requests import RequestsInstrumentor
     from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+    from opentelemetry.instrumentation.redis import RedisInstrumentor
+    from opentelemetry.instrumentation.requests import RequestsInstrumentor
 
     RedisInstrumentor().uninstrument()
     FastAPIInstrumentor().uninstrument()
     RequestsInstrumentor().uninstrument()
     HTTPXClientInstrumentor().uninstrument()
+
 
 @pytest.fixture(autouse=True)
 def clear_spans(setup_tracer_and_exporter):
@@ -64,6 +65,7 @@ def clear_spans(setup_tracer_and_exporter):
     span_exporter.clear()
     yield
     span_exporter.clear()
+
 
 def test_redis_instrumentation(setup_tracer_and_exporter):
     tracer_provider, span_exporter = setup_tracer_and_exporter
@@ -111,6 +113,7 @@ def test_redis_instrumentation(setup_tracer_and_exporter):
     assert get_span.attributes["net.peer.name"] == "localhost"
     assert get_span.attributes["net.peer.port"] == 6379
     assert get_span.attributes["redis.response"] == "b'test_value'"
+
 
 if __name__ == "__main__":
     pytest.main([__file__])
