@@ -42,20 +42,33 @@ def perform_database_operations():
         items = db.query(Item).all()
     return items
 
+def perform_redis_operations():
+    import redis
+    redis_client = redis.Redis(host='localhost', port=6379, db=0)
+    redis_client.set("test_key", "test_value")
+    value = redis_client.get("test_key")
+    return value.decode("utf-8") if value else None
+
+
 @app.get("/")
 async def read_root():
-    # External API calls
+    # [HTTP API] Requests invocation
     data = external_call()
+
+    # [HTTP API] Httpx invocation
     data_post_httpx = await external_post_call_httpx()
     data_get_httpx = await external_call_httpx()
 
-    # Database operations
-    items = perform_database_operations()
+    # [DB] SQLite invocation
+    data_sqlite = perform_database_operations()
+
+    # [DB] Redis invocation
+    data_redis = perform_redis_operations()
 
     return {
         "message": "Hello World", 
         "data": data,
-        "items": [{"id": item.id, "name": item.name, "description": item.description} for item in items]
+        "items": [{"id": item.id, "name": item.name, "description": item.description} for item in data_sqlite]
     }
 
 @app.get("/items/{item_id}")

@@ -150,6 +150,28 @@ def _instrument_sqlite3(tracer_provider: TracerProvider):
     except ImportError as e:
         pass
 
+def _instrument_redis(tracer_provider: TracerProvider):
+    try:
+        from opentelemetry.instrumentation.redis import RedisInstrumentor
+
+        def request_hook(span, instance, args, kwargs):
+            if span.is_recording():
+                span.set_attribute("redis.command", args[0])
+                if len(args) > 1:
+                    span.set_attribute("redis.command.args", str(args[1:]))
+
+        def response_hook(span, instance, response):
+            if span.is_recording():
+                span.set_attribute("redis.response", str(response))
+
+        RedisInstrumentor().instrument(
+            tracer_provider=tracer_provider,
+            request_hook=request_hook,
+            response_hook=response_hook,
+        )
+    except ImportError as e:
+        pass
+
 def _instrument_openai(tracer_provider: TracerProvider):
     try:
         from opentelemetry.instrumentation.openai import OpenAIInstrumentor
@@ -170,6 +192,7 @@ def apply_instrumentation(tracer_provider: TracerProvider):
     _instrument_dbapi(tracer_provider)
     _instrument_sqlalchemy(tracer_provider)
     _instrument_sqlite3(tracer_provider)
+    _instrument_redis(tracer_provider)
 
     # Other
     _instrument_openai(tracer_provider)
