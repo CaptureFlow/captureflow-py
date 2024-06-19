@@ -1,6 +1,9 @@
 version: '3.8'
 
+# This docker-compose will help you spawn all dependencies for examples/server.py
+
 services:
+  # Jaeger is needed to ensure you have somewhere to store all emitted metrics + provides nice UI
   jaeger:
     image: jaegertracing/all-in-one:1.57
     environment:
@@ -16,3 +19,17 @@ services:
       - "14268:14268"    # Jaeger HTTP thrift
       - "14269:14269"    # Jaeger gRPC
       - "9411:9411"      # Zipkin
+  
+  # Redis is one of the instrumented libraries that is tested inside examples/server.py
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "always"]
+    restart: always
+
+volumes:
+  redis-data:
+    driver: local

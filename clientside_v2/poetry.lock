@@ -40,6 +40,14 @@ typing-extensions = {version = ">=4", markers = "python_version < \"3.11\""}
 tests = ["pytest", "pytest-asyncio", "mypy (>=0.800)"]
 
 [[package]]
+name = "async-timeout"
+version = "4.0.3"
+description = "Timeout context manager for asyncio programs"
+category = "dev"
+optional = false
+python-versions = ">=3.7"
+
+[[package]]
 name = "certifi"
 version = "2024.6.2"
 description = "Python package for providing Mozilla's CA Bundle."
@@ -513,6 +521,23 @@ opentelemetry-util-http = "0.46b0"
 instruments = ["httpx (>=0.18.0)"]
 
 [[package]]
+name = "opentelemetry-instrumentation-redis"
+version = "0.46b0"
+description = "OpenTelemetry Redis instrumentation"
+category = "main"
+optional = false
+python-versions = ">=3.8"
+
+[package.dependencies]
+opentelemetry-api = ">=1.12,<2.0"
+opentelemetry-instrumentation = "0.46b0"
+opentelemetry-semantic-conventions = "0.46b0"
+wrapt = ">=1.12.1"
+
+[package.extras]
+instruments = ["redis (>=2.6)"]
+
+[[package]]
 name = "opentelemetry-instrumentation-requests"
 version = "0.46b0"
 description = "OpenTelemetry requests instrumentation"
@@ -739,6 +764,21 @@ description = "YAML parser and emitter for Python"
 category = "dev"
 optional = false
 python-versions = ">=3.6"
+
+[[package]]
+name = "redis"
+version = "5.0.6"
+description = "Python client for Redis database and key-value store"
+category = "dev"
+optional = false
+python-versions = ">=3.7"
+
+[package.dependencies]
+async-timeout = {version = ">=4.0.3", markers = "python_full_version < \"3.11.3\""}
+
+[package.extras]
+hiredis = ["hiredis (>=1.0.0)"]
+ocsp = ["cryptography (>=36.0.1)", "pyopenssl (==20.0.1)", "requests (>=2.26.0)"]
 
 [[package]]
 name = "requests"
@@ -970,12 +1010,13 @@ test = ["pytest (>=6,<8.1.0 || >=8.2.0)", "pytest-checkdocs (>=2.4)", "pytest-co
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "a82faad7ebb2e255658b63e80d8b4ce3253b2ee92bbee78a5e1943858d2c634b"
+content-hash = "98f901de9b0e87fa98bfe438bf13086503ab194b42aa7a017b31315d5f8ae53f"
 
 [metadata.files]
 annotated-types = []
 anyio = []
 asgiref = []
+async-timeout = []
 certifi = []
 charset-normalizer = []
 click = []
@@ -1011,6 +1052,7 @@ opentelemetry-instrumentation-dbapi = []
 opentelemetry-instrumentation-fastapi = []
 opentelemetry-instrumentation-flask = []
 opentelemetry-instrumentation-httpx = []
+opentelemetry-instrumentation-redis = []
 opentelemetry-instrumentation-requests = []
 opentelemetry-instrumentation-sqlalchemy = []
 opentelemetry-instrumentation-sqlite3 = []
@@ -1030,6 +1072,7 @@ pytest = []
 python-dotenv = []
 python-multipart = []
 pyyaml = []
+redis = []
 requests = []
 rich = []
 shellingham = []

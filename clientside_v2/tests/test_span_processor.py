@@ -1,3 +1,10 @@
+"""
+This test verifies that custom SpanProcessor implemented in CaptureFlow client library
+is capable of enriching all spans with python execution context, namely:
+    'code.filepath' in span.attributes
+    'code.lineno' in span.attributes
+    'code.function' in span.attributes
+"""
 import pytest
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
