@@ -2,6 +2,7 @@ from opentelemetry.sdk.trace import TracerProvider
 
 # TBD: instrument all top libraries
 
+
 def _decode_body(body):
     try:
         if isinstance(body, bytes):
@@ -10,12 +11,11 @@ def _decode_body(body):
     except Exception as e:
         return body
 
+
 def _instrument_fastapi(tracer_provider: TracerProvider):
     try:
-        from opentelemetry.instrumentation.fastapi import (
-            FastAPIInstrumentor,
-            Span as FastAPISpan,
-        )
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+        from opentelemetry.instrumentation.fastapi import Span as FastAPISpan
 
         def client_response_hook(span: FastAPISpan, message: dict):
             if span and span.is_recording():
@@ -28,6 +28,7 @@ def _instrument_fastapi(tracer_provider: TracerProvider):
         )
     except ImportError as e:
         pass
+
 
 def _instrument_requests(tracer_provider: TracerProvider):
     try:
@@ -55,10 +56,15 @@ def _instrument_requests(tracer_provider: TracerProvider):
     except ImportError as e:
         pass
 
+
 def _instrument_httpx(tracer_provider: TracerProvider):
     try:
         import httpx
-        from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor, RequestInfo, ResponseInfo
+        from opentelemetry.instrumentation.httpx import (
+            HTTPXClientInstrumentor,
+            RequestInfo,
+            ResponseInfo,
+        )
 
         async def read_stream(stream):
             if stream is None:
@@ -89,9 +95,9 @@ def _instrument_httpx(tracer_provider: TracerProvider):
             if span.is_recording():
                 span.set_attribute("http.response.status_code", response.status_code)
                 span.set_attribute("http.response.headers", str(response.headers))
-                body: httpx.AsyncResponseStream = response.stream # AsyncResponseStream
+                body: httpx.AsyncResponseStream = response.stream  # AsyncResponseStream
                 # TODO: how to decode stream and keep it usable?
- 
+
         # Do we actually need sync hooks?
         HTTPXClientInstrumentor().instrument(
             tracer_provider=tracer_provider,
@@ -101,12 +107,15 @@ def _instrument_httpx(tracer_provider: TracerProvider):
     except ImportError as e:
         pass
 
+
 def _instrument_flask(tracer_provider: TracerProvider):
     try:
         from opentelemetry.instrumentation.flask import FlaskInstrumentor
+
         pass
     except ImportError as e:
         pass
+
 
 def _instrument_sqlalchemy(tracer_provider: TracerProvider):
     try:
@@ -136,19 +145,24 @@ def _instrument_sqlalchemy(tracer_provider: TracerProvider):
     except ImportError as e:
         pass
 
+
 def _instrument_dbapi(tracer_provider: TracerProvider):
     try:
         from opentelemetry.instrumentation.dbapi import DatabaseApiIntegration
+
         pass
     except ImportError as e:
         pass
 
+
 def _instrument_sqlite3(tracer_provider: TracerProvider):
     try:
         from opentelemetry.instrumentation.sqlite3 import SQLite3Instrumentor
+
         pass
     except ImportError as e:
         pass
+
 
 def _instrument_redis(tracer_provider: TracerProvider):
     try:
@@ -172,12 +186,15 @@ def _instrument_redis(tracer_provider: TracerProvider):
     except ImportError as e:
         pass
 
+
 def _instrument_openai(tracer_provider: TracerProvider):
     try:
         from opentelemetry.instrumentation.openai import OpenAIInstrumentor
+
         pass
     except ImportError as e:
         pass
+
 
 def apply_instrumentation(tracer_provider: TracerProvider):
     # Web Frameworks

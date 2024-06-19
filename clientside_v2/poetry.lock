@@ -48,6 +48,29 @@ optional = false
 python-versions = ">=3.7"
 
 [[package]]
+name = "black"
+version = "24.4.2"
+description = "The uncompromising code formatter."
+category = "dev"
+optional = false
+python-versions = ">=3.8"
+
+[package.dependencies]
+click = ">=8.0.0"
+mypy-extensions = ">=0.4.3"
+packaging = ">=22.0"
+pathspec = ">=0.9.0"
+platformdirs = ">=2"
+tomli = {version = ">=1.1.0", markers = "python_version < \"3.11\""}
+typing-extensions = {version = ">=4.0.1", markers = "python_version < \"3.11\""}
+
+[package.extras]
+colorama = ["colorama (>=0.4.3)"]
+d = ["aiohttp (>=3.7.4,!=3.9.0)", "aiohttp (>=3.7.4)"]
+jupyter = ["ipython (>=7.8.0)", "tokenize-rt (>=3.2.0)"]
+uvloop = ["uvloop (>=0.15.2)"]
+
+[[package]]
 name = "certifi"
 version = "2024.6.2"
 description = "Python package for providing Mozilla's CA Bundle."
@@ -302,6 +325,17 @@ optional = false
 python-versions = ">=3.7"
 
 [[package]]
+name = "isort"
+version = "5.13.2"
+description = "A Python utility / library to sort Python imports."
+category = "dev"
+optional = false
+python-versions = ">=3.8.0"
+
+[package.extras]
+colors = ["colorama (>=0.4.6)"]
+
+[[package]]
 name = "jinja2"
 version = "3.1.4"
 description = "A very fast and expressive template engine."
@@ -351,6 +385,14 @@ description = "Markdown URL utilities"
 category = "dev"
 optional = false
 python-versions = ">=3.7"
+
+[[package]]
+name = "mypy-extensions"
+version = "1.0.0"
+description = "Type system extensions for programs checked with the mypy type checker."
+category = "dev"
+optional = false
+python-versions = ">=3.5"
 
 [[package]]
 name = "opentelemetry-api"
@@ -657,6 +699,27 @@ description = "Core utilities for Python packages"
 category = "main"
 optional = false
 python-versions = ">=3.8"
+
+[[package]]
+name = "pathspec"
+version = "0.12.1"
+description = "Utility library for gitignore style pattern matching of file paths."
+category = "dev"
+optional = false
+python-versions = ">=3.8"
+
+[[package]]
+name = "platformdirs"
+version = "4.2.2"
+description = "A small Python package for determining appropriate platform-specific dirs, e.g. a `user data dir`."
+category = "dev"
+optional = false
+python-versions = ">=3.8"
+
+[package.extras]
+docs = ["furo (>=2023.9.10)", "proselint (>=0.13)", "sphinx-autodoc-typehints (>=1.25.2)", "sphinx (>=7.2.6)"]
+test = ["appdirs (==1.4.4)", "covdefaults (>=2.3)", "pytest-cov (>=4.1)", "pytest-mock (>=3.12)", "pytest (>=7.4.3)"]
+type = ["mypy (>=1.8)"]
 
 [[package]]
 name = "pluggy"
@@ -1010,13 +1073,14 @@ test = ["pytest (>=6,<8.1.0 || >=8.2.0)", "pytest-checkdocs (>=2.4)", "pytest-co
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "98f901de9b0e87fa98bfe438bf13086503ab194b42aa7a017b31315d5f8ae53f"
+content-hash = "ff524676ef52b88d92328d4932916bb47fb13823a4dccd872e848d7ea32f9d63"
 
 [metadata.files]
 annotated-types = []
 anyio = []
 asgiref = []
 async-timeout = []
+black = []
 certifi = []
 charset-normalizer = []
 click = []
@@ -1037,10 +1101,12 @@ httpx = []
 idna = []
 importlib-metadata = []
 iniconfig = []
+isort = []
 jinja2 = []
 markdown-it-py = []
 markupsafe = []
 mdurl = []
+mypy-extensions = []
 opentelemetry-api = []
 opentelemetry-exporter-otlp = []
 opentelemetry-exporter-otlp-proto-common = []
@@ -1063,6 +1129,8 @@ opentelemetry-semantic-conventions = []
 opentelemetry-util-http = []
 orjson = []
 packaging = []
+pathspec = []
+platformdirs = []
 pluggy = []
 protobuf = []
 pydantic = []

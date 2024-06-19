@@ -29,6 +29,8 @@ fastapi = "^0.111.0"
 httpx = "^0.27.0"
 pytest = "^8.2.2"
 redis = "^5.0.6"
+black = "^24.4.2"
+isort = "^5.13.2"
 
 [build-system]
 requires = ["poetry-core"]
@@ -36,3 +38,23 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.plugins."opentelemetry_distro"]
 distro = "captureflow.distro:CaptureFlowDistro"
+
+[tool.black]
+line-length = 120
+target-version = ['py39']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
