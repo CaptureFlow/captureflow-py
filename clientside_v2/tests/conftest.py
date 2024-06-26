@@ -1,19 +1,21 @@
 import subprocess
-import requests
-import pytest
 import time
+
+import pytest
+import requests
+
 
 @pytest.fixture(scope="session", autouse=True)
 def start_docker_compose():
     """
-        All the custom instrumentations require docker contains running (e.g. postgres, redis, etc).
-        Also, make sure Docker itself is running.
+    All the custom instrumentations require docker contains running (e.g. postgres, redis, etc).
+    Also, make sure Docker itself is running.
     """
-    
+
     def is_jaeger_running():
         """
-            Checking if docker compose is already running.
-            Currently, check is simplified to just checking "jaeger" container, that runs on :16686 port
+        Checking if docker compose is already running.
+        Currently, check is simplified to just checking "jaeger" container, that runs on :16686 port
         """
         try:
             response = requests.get("http://localhost:16686")

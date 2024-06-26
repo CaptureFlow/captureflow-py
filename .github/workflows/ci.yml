@@ -7,42 +7,6 @@ on:
     branches: [ main ]
 
 jobs:
-  server_build:
-
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        python-version: [ 3.11 ]
-
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python-version }}
-
-    - name: Install server dependencies
-      run: |
-        python -m pip install --upgrade pip
-        cd serverside/
-        pip install -r requirements-dev.txt
-
-    - name: Run server pytest
-      run: |
-        cd serverside/
-        pytest
-
-    - name: Check server code with black
-      run: |
-        cd serverside/
-        black --check . --line-length 120
-
-    - name: Check server code with isort
-      run: |
-        cd serverside/
-        isort --check-only .
 
   client_build:
 
@@ -60,23 +24,27 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Install client dependencies
+    - name: Install Poetry
       run: |
-        python -m pip install --upgrade pip
-        cd clientside/
-        pip install -r requirements-dev.txt
+        curl -sSL https://install.python-poetry.org | python3 -
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> $GITHUB_ENV
+
+    - name: Install dependencies with Poetry
+      run: |
+        cd clientside_v2/
+        poetry install
 
     - name: Run client pytest
       run: |
-        cd clientside/
-        pytest
+        cd clientside_v2/
+        poetry run pytest
 
     - name: Check client code with black
       run: |
-        cd clientside/
-        black --check . --line-length 120
+        cd clientside_v2/
+        poetry run black --check . --line-length 120
 
     - name: Check client code with isort
       run: |
-        cd clientside/
-        isort --check-only .
+        cd clientside_v2/
+        poetry run isort --check-only .
