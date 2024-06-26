@@ -47,16 +47,7 @@ def setup_tracer_and_exporter():
 
     yield tracer_provider, span_exporter
 
-    # Clean up instrumentation
-    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-    from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
-    from opentelemetry.instrumentation.redis import RedisInstrumentor
-    from opentelemetry.instrumentation.requests import RequestsInstrumentor
-
-    RedisInstrumentor().uninstrument()
-    FastAPIInstrumentor().uninstrument()
-    RequestsInstrumentor().uninstrument()
-    HTTPXClientInstrumentor().uninstrument()
+    # TODO: do we need to clean-up?
 
 
 @pytest.fixture(autouse=True)
