@@ -83,22 +83,18 @@ def _instrument_httpx(tracer_provider: TracerProvider):
                 if body:
                     span.set_attribute("http.request.body", _decode_body(body))
                     new_stream = httpx.ByteStream([body])  # Reset the stream for the actual request
-                    request = httpx.Request(
-                        method=request.method,
-                        url=request.url,
-                        headers=request.headers,
-                        stream=new_stream,
-                        extensions=request.extensions,
-                    )
+                    request.stream = new_stream
 
         async def response_hook(span, request: RequestInfo, response: ResponseInfo):
             if span.is_recording():
                 span.set_attribute("http.response.status_code", response.status_code)
                 span.set_attribute("http.response.headers", str(response.headers))
-                body: httpx.AsyncResponseStream = response.stream  # AsyncResponseStream
-                # TODO: how to decode stream and keep it usable?
+                body = await read_stream(response.stream)
+                if body:
+                    span.set_attribute("http.response.body", _decode_body(body))
+                    new_stream = httpx.ByteStream([body])  # Reset the stream for the actual response
+                    response.stream = new_stream
 
-        # Do we actually need sync hooks?
         HTTPXClientInstrumentor().instrument(
             tracer_provider=tracer_provider,
             async_request_hook=request_hook,
