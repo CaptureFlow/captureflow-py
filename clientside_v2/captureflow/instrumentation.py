@@ -1,4 +1,9 @@
+import asyncio
+import functools
+
+from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.trace import SpanKind
 
 # TBD: instrument all top libraries
 
@@ -57,55 +62,64 @@ def _instrument_requests(tracer_provider: TracerProvider):
         pass
 
 
-def _instrument_httpx(tracer_provider: TracerProvider):
-    try:
-        import httpx
-        from opentelemetry.instrumentation.httpx import (
-            HTTPXClientInstrumentor,
-            RequestInfo,
-            ResponseInfo,
+def _instrument_httpx(tracer_provider=None):
+    import httpx
+
+    tracer = trace.get_tracer(__name__, tracer_provider=tracer_provider)
+
+    async def _capture_request_response(request: httpx.Request, span: trace.Span):
+        span.set_attribute("http.request.method", request.method)
+        span.set_attribute("http.request.url", str(request.url))
+        span.set_attribute("http.request.headers", str(dict(request.headers)))
+        if request.content:
+            span.set_attribute("http.request.body", request.content.decode("utf-8", errors="replace"))
+
+    async def _capture_response(response: httpx.Response, span: trace.Span):
+        content = await response.aread()
+        span.set_attribute("http.response.body", content.decode("utf-8", errors="replace"))
+        span.set_attribute("http.response.status_code", response.status_code)
+        span.set_attribute("http.response.headers", str(dict(response.headers)))
+
+    async def instrumented_send(self, request: httpx.Request, **kwargs) -> httpx.Response:
+        span = tracer.start_span(
+            f"HTTP {request.method}",
+            kind=SpanKind.CLIENT,
         )
 
-        async def read_stream(stream):
-            if stream is None:
-                return None
-            content = b""
-            async for chunk in stream:
-                content += chunk
-            return content
+        try:
+            await _capture_request_response(request, span)
+            response = await self.original_send(request, **kwargs)
+            await _capture_response(response, span)
+            return response
+        except Exception as e:
+            span.record_exception(e)
+            raise
+        finally:
+            span.end()
 
-        async def request_hook(span, request: RequestInfo):
-            if span.is_recording():
-                span.set_attribute("http.request.method", request.method.decode())
-                span.set_attribute("http.request.url", str(request.url))
-                span.set_attribute("http.request.headers", str(request.headers))
-                body = await read_stream(request.stream)
-                if body:
-                    span.set_attribute("http.request.body", _decode_body(body))
-                    new_stream = httpx.ByteStream([body])  # Reset the stream for the actual request
-                    request = httpx.Request(
-                        method=request.method,
-                        url=request.url,
-                        headers=request.headers,
-                        stream=new_stream,
-                        extensions=request.extensions,
-                    )
+    def sync_instrumented_send(self, request: httpx.Request, **kwargs) -> httpx.Response:
+        # TODO: simplify
+        return asyncio.run(instrumented_send(self, request, **kwargs))
 
-        async def response_hook(span, request: RequestInfo, response: ResponseInfo):
-            if span.is_recording():
-                span.set_attribute("http.response.status_code", response.status_code)
-                span.set_attribute("http.response.headers", str(response.headers))
-                body: httpx.AsyncResponseStream = response.stream  # AsyncResponseStream
-                # TODO: how to decode stream and keep it usable?
+    original_client = httpx.Client
+    original_async_client = httpx.AsyncClient
 
-        # Do we actually need sync hooks?
-        HTTPXClientInstrumentor().instrument(
-            tracer_provider=tracer_provider,
-            async_request_hook=request_hook,
-            async_response_hook=response_hook,
-        )
-    except ImportError as e:
-        pass
+    class InstrumentedClient(httpx.Client):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.original_send = self.send
+            self.send = functools.partial(sync_instrumented_send, self)
+
+    class InstrumentedAsyncClient(httpx.AsyncClient):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.original_send = self.send
+            self.send = functools.partial(instrumented_send, self)
+
+    httpx.Client = InstrumentedClient
+    httpx.AsyncClient = InstrumentedAsyncClient
+
+    return original_client, original_async_client
 
 
 def _instrument_flask(tracer_provider: TracerProvider):
