@@ -8,11 +8,6 @@ import pytest
 import redis
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import get_tracer_provider
-
-from captureflow.distro import CaptureFlowDistro
 
 app = FastAPI()
 redis_client = redis.Redis(host="localhost", port=6379, db=0)
@@ -32,34 +27,7 @@ async def read_root():
     return {"message": "Hello World", "redis_value": redis_value}
 
 
-@pytest.fixture(scope="module")
-def setup_tracer_and_exporter():
-    distro = CaptureFlowDistro()
-    distro._configure()
-
-    # Retrieve the global tracer provider
-    tracer_provider = get_tracer_provider()
-
-    # Set up in-memory span exporter
-    span_exporter = InMemorySpanExporter()
-    span_processor = SimpleSpanProcessor(span_exporter)
-    tracer_provider.add_span_processor(span_processor)
-
-    yield tracer_provider, span_exporter
-
-    # TODO: do we need to clean-up?
-
-
-@pytest.fixture(autouse=True)
-def clear_spans(setup_tracer_and_exporter):
-    _, span_exporter = setup_tracer_and_exporter
-    span_exporter.clear()
-    yield
-    span_exporter.clear()
-
-
-def test_redis_instrumentation(setup_tracer_and_exporter):
-    tracer_provider, span_exporter = setup_tracer_and_exporter
+def test_redis_instrumentation(span_exporter):
     client = TestClient(app)
 
     # Make a request to the FastAPI server

@@ -31,6 +31,7 @@ pytest = "^8.2.2"
 redis = "^5.0.6"
 black = "^24.4.2"
 isort = "^5.13.2"
+Flask = "^3.0.3"
 
 [build-system]
 requires = ["poetry-core"]
