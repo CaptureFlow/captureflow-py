@@ -1,4 +1,3 @@
-import asyncio
 import functools
 
 from opentelemetry import trace
