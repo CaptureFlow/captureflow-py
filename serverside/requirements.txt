@@ -1,6 +1,5 @@
 annotated-types==0.6.0
 anyio==4.3.0
-captureflow-agent==0.0.9
 certifi==2024.2.2
 cffi==1.16.0
 charset-normalizer==3.3.2
@@ -31,3 +30,4 @@ typing_extensions==4.10.0
 urllib3==2.2.1
 uvicorn==0.29.0
 wrapt==1.16.0
+captureflow-agent==0.0.11
