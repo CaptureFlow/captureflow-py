@@ -11,11 +11,6 @@ import pytest
 import requests
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import get_tracer_provider
-
-from captureflow.distro import CaptureFlowDistro
 
 app = FastAPI()
 
@@ -26,34 +21,7 @@ async def call_external():
     return {"status_code": response.status_code, "body": response.json()}
 
 
-@pytest.fixture(scope="module")
-def setup_tracer_and_exporter():
-    distro = CaptureFlowDistro()
-    distro._configure()
-
-    # Retrieve the global tracer provider
-    tracer_provider = get_tracer_provider()
-
-    # Set up in-memory span exporter
-    span_exporter = InMemorySpanExporter()
-    span_processor = SimpleSpanProcessor(span_exporter)
-    tracer_provider.add_span_processor(span_processor)
-
-    yield tracer_provider, span_exporter
-
-    # TODO: do we need to clean-up?
-
-
-@pytest.fixture(autouse=True)
-def clear_spans(setup_tracer_and_exporter):
-    _, span_exporter = setup_tracer_and_exporter
-    span_exporter.clear()
-    yield
-    span_exporter.clear()
-
-
-def test_requests_instrumentation(setup_tracer_and_exporter):
-    tracer_provider, span_exporter = setup_tracer_and_exporter
+def test_requests_instrumentation(span_exporter):
     client = TestClient(app)
 
     # Make a request to the FastAPI server that calls an external HTTP service
@@ -63,8 +31,6 @@ def test_requests_instrumentation(setup_tracer_and_exporter):
     # Retrieve the spans
     spans = span_exporter.get_finished_spans()
     http_spans = [span for span in spans if span.attributes.get("http.method") is not None]
-
-    print("HTTP SPANS = ", http_spans)
 
     assert len(http_spans) >= 1, "Expected at least one HTTP span"
 

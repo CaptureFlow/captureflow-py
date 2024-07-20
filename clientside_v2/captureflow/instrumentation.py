@@ -67,39 +67,38 @@ def _instrument_httpx(tracer_provider=None):
 
     tracer = trace.get_tracer(__name__, tracer_provider=tracer_provider)
 
-    async def _capture_request_response(request: httpx.Request, span: trace.Span):
+    def _capture_request(request: httpx.Request, span: trace.Span):
+        span.set_attribute("http.lol", 1)
         span.set_attribute("http.request.method", request.method)
         span.set_attribute("http.request.url", str(request.url))
         span.set_attribute("http.request.headers", str(dict(request.headers)))
         if request.content:
             span.set_attribute("http.request.body", request.content.decode("utf-8", errors="replace"))
 
-    async def _capture_response(response: httpx.Response, span: trace.Span):
-        content = await response.aread()
-        span.set_attribute("http.response.body", content.decode("utf-8", errors="replace"))
+    def _capture_response(response: httpx.Response, span: trace.Span):
+        span.set_attribute("http.response.body", response.text)
         span.set_attribute("http.response.status_code", response.status_code)
         span.set_attribute("http.response.headers", str(dict(response.headers)))
 
-    async def instrumented_send(self, request: httpx.Request, **kwargs) -> httpx.Response:
-        span = tracer.start_span(
+    def instrumented_send(self, request: httpx.Request, **kwargs) -> httpx.Response:
+        with tracer.start_as_current_span(
             f"HTTP {request.method}",
             kind=SpanKind.CLIENT,
-        )
-
-        try:
-            await _capture_request_response(request, span)
-            response = await self.original_send(request, **kwargs)
-            await _capture_response(response, span)
+        ) as span:
+            _capture_request(request, span)
+            response = self._original_send(request, **kwargs)
+            _capture_response(response, span)
             return response
-        except Exception as e:
-            span.record_exception(e)
-            raise
-        finally:
-            span.end()
 
-    def sync_instrumented_send(self, request: httpx.Request, **kwargs) -> httpx.Response:
-        # TODO: simplify
-        return asyncio.run(instrumented_send(self, request, **kwargs))
+    async def async_instrumented_send(self, request: httpx.Request, **kwargs) -> httpx.Response:
+        with tracer.start_as_current_span(
+            f"HTTP {request.method}",
+            kind=SpanKind.CLIENT,
+        ) as span:
+            _capture_request(request, span)
+            response = await self._original_send(request, **kwargs)
+            _capture_response(response, span)
+            return response
 
     original_client = httpx.Client
     original_async_client = httpx.AsyncClient
@@ -107,14 +106,14 @@ def _instrument_httpx(tracer_provider=None):
     class InstrumentedClient(httpx.Client):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
-            self.original_send = self.send
-            self.send = functools.partial(sync_instrumented_send, self)
+            self._original_send = super().send
+            self.send = functools.partial(instrumented_send, self)
 
     class InstrumentedAsyncClient(httpx.AsyncClient):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
-            self.original_send = self.send
-            self.send = functools.partial(instrumented_send, self)
+            self._original_send = super().send
+            self.send = functools.partial(async_instrumented_send, self)
 
     httpx.Client = InstrumentedClient
     httpx.AsyncClient = InstrumentedAsyncClient
@@ -124,11 +123,46 @@ def _instrument_httpx(tracer_provider=None):
 
 def _instrument_flask(tracer_provider: TracerProvider):
     try:
+        from flask import Flask, g, request
         from opentelemetry.instrumentation.flask import FlaskInstrumentor
+        from opentelemetry.trace import Span, SpanKind
 
-        pass
+        def before_request():
+            tracer = trace.get_tracer(__name__)
+            span = tracer.start_span(f"HTTP {request.method} {request.path}", kind=SpanKind.SERVER)
+            g.span = span
+
+            span.set_attribute("http.method", request.method)
+            span.set_attribute("http.url", request.url)
+            span.set_attribute("http.request.headers", str(dict(request.headers)))
+
+            if request.data:
+                span.set_attribute("http.request.body", _decode_body(request.data))
+
+        def after_request(response):
+            span: Span = getattr(g, "span", None)
+            if span and span.is_recording():
+                span.set_attribute("http.response.headers", str(dict(response.headers)))
+                if response.data:
+                    span.set_attribute("http.response.body", _decode_body(response.data))
+                span.set_attribute("http.status_code", response.status_code)
+                span.end()
+
+            return response
+
+        FlaskInstrumentor().instrument(tracer_provider=tracer_provider)
+
+        original_wsgi_app = Flask.wsgi_app
+
+        def wrapped_wsgi_app(app, environ, start_response):
+            app.before_request(before_request)
+            app.after_request(after_request)
+            return original_wsgi_app(app, environ, start_response)
+
+        Flask.wsgi_app = wrapped_wsgi_app
+
     except ImportError as e:
-        pass
+        print(f"Flask instrumentation failed: {e}")
 
 
 def _instrument_sqlalchemy(tracer_provider: TracerProvider):
