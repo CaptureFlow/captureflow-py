@@ -29,7 +29,21 @@ services:
       - redis-data:/data
     command: ["redis-server", "--appendonly", "yes", "--appendfsync", "always"]
     restart: always
+  
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: testdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: always
 
 volumes:
   redis-data:
+    driver: local
+  postgres-data:
     driver: local

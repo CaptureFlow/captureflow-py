@@ -778,6 +778,14 @@ optional = false
 python-versions = ">=3.8"
 
 [[package]]
+name = "psycopg2-binary"
+version = "2.9.3"
+description = "psycopg2 - Python-PostgreSQL Database Adapter"
+category = "dev"
+optional = false
+python-versions = ">=3.6"
+
+[[package]]
 name = "pydantic"
 version = "2.7.3"
 description = "Data validation using Python type hints"
@@ -1034,7 +1042,7 @@ zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
 name = "uvicorn"
-version = "0.30.1"
+version = "0.30.3"
 description = "The lightning-fast ASGI server."
 category = "dev"
 optional = false
@@ -1123,7 +1131,7 @@ test = ["pytest (>=6,<8.1.0 || >=8.2.0)", "pytest-checkdocs (>=2.4)", "pytest-co
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "b34edaf018399dc211f9ec9707ff05a713e20304165b3d70faf497374324840c"
+content-hash = "b2529fcd105df3a94684649f1e49b6494f4da336f0c5da2220bbfe1b70c429a7"
 
 [metadata.files]
 annotated-types = []
@@ -1186,6 +1194,7 @@ pathspec = []
 platformdirs = []
 pluggy = []
 protobuf = []
+psycopg2-binary = []
 pydantic = []
 pydantic-core = []
 pygments = []
