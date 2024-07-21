@@ -164,33 +164,41 @@ def _instrument_flask(tracer_provider: TracerProvider):
         print(f"Flask instrumentation failed: {e}")
 
 
-def _instrument_sqlalchemy(tracer_provider: TracerProvider):
-    try:
-        import sqlalchemy
-        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+def _instrument_sqlalchemy(tracer_provider=None):
+    from opentelemetry import trace
+    from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+    from opentelemetry.trace import SpanKind
+    from sqlalchemy import Engine, event
 
-        # Instrument SQLAlchemy
-        SQLAlchemyInstrumentor().instrument(tracer_provider=tracer_provider)
+    tracer = trace.get_tracer(__name__, tracer_provider=tracer_provider)
 
-        def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
-            # Start a new span for SQL execution
-            span = tracer_provider.get_tracer(__name__).start_span(name="SQL Execute")
-            if span.is_recording():
-                span.set_attribute("db.statement", statement)
-                span.set_attribute("db.parameters", str(parameters))
-            context._span = span
-
-        def after_cursor_execute(conn, cursor, statement, parameters, context, executemany) -> None:
-            # End the span after execution
-            span = getattr(context, "_span", None)
-            if span:
-                # TODO: how to decode cursor and keep it usable?
-                span.end()
-
-        sqlalchemy.event.listen(sqlalchemy.engine.Engine, "before_cursor_execute", before_cursor_execute)
-        sqlalchemy.event.listen(sqlalchemy.engine.Engine, "after_cursor_execute", after_cursor_execute)
-    except ImportError as e:
+    @event.listens_for(Engine, "before_cursor_execute")
+    def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
         pass
+
+    @event.listens_for(Engine, "after_cursor_execute")
+    def after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+        span = tracer.start_span(
+            name=f"SQLAlchemy: {statement.split()[0]}",
+            kind=SpanKind.CLIENT,
+        )
+
+        span.set_attribute("db.system", "sqlalchemy")
+        span.set_attribute("db.statement", statement)
+        span.set_attribute("db.parameters", str(parameters))
+
+        if cursor.description:
+            span.set_attribute("db.result_columns", str([desc[0] for desc in cursor.description]))
+
+        if hasattr(cursor, "rowcount"):
+            span.set_attribute("db.row_count", cursor.rowcount)
+
+        span.end()
+
+    # Use the SQLAlchemyInstrumentor for additional instrumentation
+    SQLAlchemyInstrumentor().instrument(tracer_provider=tracer_provider)
+
+    return tracer
 
 
 def _instrument_dbapi(tracer_provider: TracerProvider):
