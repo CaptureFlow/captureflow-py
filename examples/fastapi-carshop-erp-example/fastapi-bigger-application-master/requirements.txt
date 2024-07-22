@@ -4,6 +4,7 @@ async-exit-stack==1.0.1
 async-generator==1.10
 attrs==21.2.0
 autopep8==1.5.7
+captureflow-agent==0.0.11
 certifi==2021.5.30
 charset-normalizer==2.0.3
 click==8.0.1
@@ -11,7 +12,7 @@ contextvars==2.4
 coverage==5.5
 dataclasses
 fastapi==0.66.0
-greenlet==1.1.0
+greenlet==3.0.3
 h11==0.12.0
 idna==3.2
 immutables==0.15
