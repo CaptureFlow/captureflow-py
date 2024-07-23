@@ -165,38 +165,58 @@ def _instrument_flask(tracer_provider: TracerProvider):
 
 
 def _instrument_sqlalchemy(tracer_provider=None):
-    from opentelemetry import trace
-    from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+    """
+    NOTE: this way of getting results is really hacky and is going to degrade SELECT() query performance,
+          but there is no other easy way of reading into DB-API cursors.
+          Hopefully sampling rate is pretty high and after experimentation something can be figured out.
+    """
+    import sqlparse
     from opentelemetry.trace import SpanKind
-    from sqlalchemy import Engine, event
+    from sqlalchemy import event
+    from sqlalchemy.engine import Engine
 
     tracer = trace.get_tracer(__name__, tracer_provider=tracer_provider)
 
+    def is_select_statement(statement):
+        parsed = sqlparse.parse(statement)
+        if parsed:
+            return parsed[0].get_type().upper() == "SELECT"
+        return False
+
     @event.listens_for(Engine, "before_cursor_execute")
     def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
-        pass
-
-    @event.listens_for(Engine, "after_cursor_execute")
-    def after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
-        span = tracer.start_span(
+        context._span = tracer.start_span(
             name=f"SQLAlchemy: {statement.split()[0]}",
             kind=SpanKind.CLIENT,
         )
+        context._span.set_attribute("db.system", "sqlalchemy")
+        context._span.set_attribute("db.statement", statement)
+        context._span.set_attribute("db.parameters", str(parameters))
 
-        span.set_attribute("db.system", "sqlalchemy")
-        span.set_attribute("db.statement", statement)
-        span.set_attribute("db.parameters", str(parameters))
+        context._original_statement = statement
+        context._original_parameters = parameters
+        context._is_select = is_select_statement(statement)
 
-        if cursor.description:
-            span.set_attribute("db.result_columns", str([desc[0] for desc in cursor.description]))
+    @event.listens_for(Engine, "after_cursor_execute")
+    def after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
+        if hasattr(context, "_span"):
+            span = context._span
+            if cursor.description:
+                span.set_attribute("db.result_columns", str([desc[0] for desc in cursor.description]))
+            if hasattr(cursor, "rowcount"):
+                span.set_attribute("db.row_count", cursor.rowcount)
 
-        if hasattr(cursor, "rowcount"):
-            span.set_attribute("db.row_count", cursor.rowcount)
+            if context._is_select:
+                try:
+                    with conn.connection.cursor() as new_cursor:
+                        new_cursor.execute(context._original_statement, context._original_parameters)
+                        columns = [col[0] for col in new_cursor.description]
+                        rows = [dict(zip(columns, row)) for row in new_cursor.fetchall()]
+                        span.set_attribute("db.result_data", str(rows))
+                except Exception as e:
+                    span.set_attribute("db.result_capture_error", str(e))
 
-        span.end()
-
-    # Use the SQLAlchemyInstrumentor for additional instrumentation
-    SQLAlchemyInstrumentor().instrument(tracer_provider=tracer_provider)
+            span.end()
 
     return tracer
 

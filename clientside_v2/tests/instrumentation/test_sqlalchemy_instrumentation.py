@@ -1,3 +1,14 @@
+"""
+This test verifies that SQLAlchemy query spans include execution and result details:
+    'db.system' in span.attributes
+    'db.statement' in span.attributes
+    'db.parameters' in span.attributes
+    'db.row_count' in span.attributes
+    'db.result_columns' in span.attributes (for SELECT queries)
+    'db.result_data' in span.attributes (for SELECT queries)
+"""
+
+import json
 import os
 
 import pytest
@@ -94,7 +105,12 @@ def test_sqlalchemy_instrumentation(engine, client, span_exporter):
     assert "db.result_columns" in select_span.attributes
     assert "db.row_count" in select_span.attributes
 
-    print("All spans:", spans)
-    print("Relevant SQL spans:", relevant_sql_spans)
-    print("INSERT span:", insert_span.to_json())
-    print("SELECT span:", select_span.to_json())
+    # Validate SELECT has the db.result_data attribute
+    assert "db.result_data" in select_span.attributes
+    result_data = eval(select_span.attributes["db.result_data"])  # Convert string representation to list of dicts
+    assert isinstance(result_data, list)
+    assert len(result_data) > 0
+    assert isinstance(result_data[0], dict)
+    assert "users_id" in result_data[0]  # For some reason SQLAlchemy does "SELECT users.id AS users_id"
+    assert "users_name" in result_data[0]  # # For some reason SQLAlchemy does "SELECT users.name AS users_name"
+    assert result_data[0]["users_name"] == "Test User"
