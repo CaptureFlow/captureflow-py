@@ -264,8 +264,6 @@ def _instrument_redis(tracer_provider: TracerProvider):
 
 def _instrument_openai(tracer_provider: TracerProvider):
     try:
-        from opentelemetry.instrumentation.openai import OpenAIInstrumentor
-
         pass
     except ImportError as e:
         pass
