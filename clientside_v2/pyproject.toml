@@ -33,6 +33,7 @@ black = "^24.4.2"
 isort = "^5.13.2"
 Flask = "^3.0.3"
 psycopg2-binary = "2.9.3"
+sqlparse = "^0.5.1"
 
 [build-system]
 requires = ["poetry-core"]
