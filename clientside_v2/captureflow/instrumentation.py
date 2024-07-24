@@ -21,12 +21,18 @@ def _instrument_fastapi(tracer_provider: TracerProvider):
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
         from opentelemetry.instrumentation.fastapi import Span as FastAPISpan
 
+        def client_request_hook(span: FastAPISpan, scope: dict):
+            if span and span.is_recording():
+                if "body" in scope:
+                    span.set_attribute("http.request.body", _decode_body(scope["body"]))
+
         def client_response_hook(span: FastAPISpan, message: dict):
             if span and span.is_recording():
                 if "body" in message:
                     span.set_attribute("http.response.body", _decode_body(message["body"]))
 
         FastAPIInstrumentor().instrument(
+            client_request_hook=client_request_hook,
             client_response_hook=client_response_hook,
             tracer_provider=tracer_provider,
         )
