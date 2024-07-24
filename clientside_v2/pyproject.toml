@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "captureflow-agent"
-version = "0.0.15"
+version = "0.0.16"
 description = "The CaptureFlow Tracer is a Python package crafted for in-depth tracing of function calls within Python applications. Its primary function is to capture and relay execution data to the CaptureFlow server-side system for decision making."
 authors = ["Nick Kutz <me@nikitakuts.com>"]
 readme = "README.md"
